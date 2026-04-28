@@ -84,7 +84,7 @@ export default class GentleMemoriesPlugin extends Plugin {
       id: SHOW_MEMORY_COMMAND_ID,
       name: SHOW_MEMORY_COMMAND_NAME,
       callback: () => {
-        this.showMemory();
+        this.showManualMemory();
       }
     });
 
@@ -104,6 +104,10 @@ export default class GentleMemoriesPlugin extends Plugin {
   showMemory(): void {
     const journalNotes = this.discoverJournalNotes();
     new Notice(`Gentle Memories found ${journalNotes.length} journal note${journalNotes.length === 1 ? "" : "s"}. Memory display is not implemented yet.`);
+  }
+
+  showManualMemory(): void {
+    this.showMemory();
   }
 
   private queueStartupMemoryDisplay(): void {

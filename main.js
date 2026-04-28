@@ -79,7 +79,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       id: SHOW_MEMORY_COMMAND_ID,
       name: SHOW_MEMORY_COMMAND_NAME,
       callback: () => {
-        this.showMemory();
+        this.showManualMemory();
       }
     });
     this.addSettingTab(new GentleMemoriesSettingTab(this));
@@ -94,6 +94,9 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   showMemory() {
     const journalNotes = this.discoverJournalNotes();
     new import_obsidian.Notice(`Gentle Memories found ${journalNotes.length} journal note${journalNotes.length === 1 ? "" : "s"}. Memory display is not implemented yet.`);
+  }
+  showManualMemory() {
+    this.showMemory();
   }
   queueStartupMemoryDisplay() {
     if (!this.settings.showOnStartup) {

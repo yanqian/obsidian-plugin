@@ -225,6 +225,22 @@ if (notices.length !== 0) {
   throw new Error("Startup display must not show a notice when showOnStartup is false");
 }
 
+const disabledStartupShowMemoryCommand = disabledStartupPlugin.commands.find((command) => command.id === "show-memory");
+
+if (!disabledStartupShowMemoryCommand) {
+  throw new Error("Manual show memory command must be registered");
+}
+
+disabledStartupShowMemoryCommand.callback();
+
+if (notices.length !== 1 || !notices[0].includes("Gentle Memories found 1 journal note")) {
+  throw new Error("Manual show memory command must display a memory when showOnStartup is false");
+}
+
+if (layoutCallbacks.length !== 0) {
+  throw new Error("Manual show memory command must not depend on startup layout scheduling");
+}
+
 layoutCallbacks = [];
 notices.length = 0;
 const enabledStartupPlugin = new GentleMemoriesPlugin(createMockApp());
