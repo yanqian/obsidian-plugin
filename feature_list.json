@@ -45,9 +45,9 @@
     {
       "id": "F006",
       "description": "Does not discover notes without configured tags.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {

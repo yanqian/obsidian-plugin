@@ -1,4 +1,5 @@
 import fs from "fs";
+import Module, { createRequire } from "module";
 
 const port = Number.parseInt(process.env.SMOKE_PORT ?? "4173", 10);
 const requiredFiles = ["manifest.json", "main.ts", "main.js", "feature_list.json", "progress.md"];
@@ -11,6 +12,7 @@ for (const file of requiredFiles) {
 
 const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
 const mainSource = fs.readFileSync("main.ts", "utf8");
+const require = createRequire(import.meta.url);
 const requiredManifestStrings = ["id", "name", "version", "minAppVersion", "description", "author"];
 
 for (const field of requiredManifestStrings) {
@@ -93,6 +95,45 @@ for (const snippet of requiredDiscoverySnippets) {
   if (!mainSource.includes(snippet)) {
     throw new Error(`main.ts must discover Markdown notes with default journal tags: missing ${snippet}`);
   }
+}
+
+const originalModuleLoad = Module._load;
+
+Module._load = function loadWithObsidianMock(request, parent, isMain) {
+  if (request === "obsidian") {
+    return {
+      getAllTags(cache) {
+        return cache?.__allTags;
+      },
+      Notice: class Notice {},
+      Plugin: class Plugin {},
+      PluginSettingTab: class PluginSettingTab {},
+      Setting: class Setting {}
+    };
+  }
+
+  return originalModuleLoad.call(this, request, parent, isMain);
+};
+
+const { noteHasConfiguredJournalTag } = require("../main.js");
+Module._load = originalModuleLoad;
+
+const configuredTags = ["journal", "diary", "note"];
+
+if (noteHasConfiguredJournalTag(null, configuredTags)) {
+  throw new Error("Journal discovery must reject notes without metadata");
+}
+
+if (noteHasConfiguredJournalTag({}, configuredTags)) {
+  throw new Error("Journal discovery must reject notes without tags");
+}
+
+if (noteHasConfiguredJournalTag({ __allTags: ["#project"] }, configuredTags)) {
+  throw new Error("Journal discovery must reject notes without configured tags");
+}
+
+if (!noteHasConfiguredJournalTag({ __allTags: ["#journal"] }, configuredTags)) {
+  throw new Error("Journal discovery must accept notes with configured tags");
 }
 
 const response = await fetch(`http://127.0.0.1:${port}/health`);
