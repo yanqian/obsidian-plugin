@@ -6,32 +6,32 @@
       "id": "F001",
       "description": "Obsidian plugin scaffold using TypeScript builds successfully.",
       "passes": true,
-      "status": "todo",
-      "attempts": 3,
+      "status": "done",
+      "attempts": 0,
       "last_error": ""
     },
     {
       "id": "F002",
       "description": "Plugin has a valid Obsidian manifest.json for local installation.",
       "passes": true,
-      "status": "todo",
-      "attempts": 3,
+      "status": "done",
+      "attempts": 0,
       "last_error": ""
     },
     {
       "id": "F003",
       "description": "Registers command named Gentle Memories: Show memory.",
       "passes": true,
-      "status": "todo",
-      "attempts": 3,
+      "status": "done",
+      "attempts": 0,
       "last_error": ""
     },
     {
       "id": "F004",
       "description": "Settings tab exposes journalTags, showOnStartup, minDaysBetweenStartupShows, aiEnabled, apiKey, and cacheAiResponses.",
       "passes": true,
-      "status": "todo",
-      "attempts": 3,
+      "status": "done",
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -39,7 +39,7 @@
       "description": "Discovers Markdown notes tagged with #journal, #diary, or #note by default.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -47,7 +47,7 @@
       "description": "Does not discover notes without configured tags.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -55,7 +55,7 @@
       "description": "Startup display respects showOnStartup.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -63,7 +63,7 @@
       "description": "Startup display respects minDaysBetweenStartupShows.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -71,7 +71,7 @@
       "description": "Manual command displays a memory even when startup display is disabled.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -79,7 +79,7 @@
       "description": "Shown memory contains title, excerpt, required buttons, and date when derivable.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -87,7 +87,7 @@
       "description": "Open note button opens the source note.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -95,7 +95,7 @@
       "description": "Next button does not repeat the same note when another eligible note exists.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -103,7 +103,7 @@
       "description": "Display history persists across plugin reloads.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -111,7 +111,7 @@
       "description": "AI is disabled by default.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -119,7 +119,7 @@
       "description": "No network request occurs before the user clicks Generate reflection.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -127,7 +127,7 @@
       "description": "No network request occurs while AI is disabled.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -135,7 +135,7 @@
       "description": "AI request payload excludes full note content, file paths, vault names, and display history.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -143,7 +143,7 @@
       "description": "AI cache is keyed by ${path}:${contentHash}.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
@@ -151,7 +151,7 @@
       "description": "Empty or unusable notes are not shown.",
       "passes": false,
       "status": "todo",
-      "attempts": 3,
+      "attempts": 0,
       "last_error": ""
     },
     {
