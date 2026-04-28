@@ -68,6 +68,50 @@ function normalizeSettings(value) {
     cacheAiResponses: typeof saved.cacheAiResponses === "boolean" ? saved.cacheAiResponses : DEFAULT_SETTINGS.cacheAiResponses
   };
 }
+function deriveTitle(file) {
+  var _a;
+  const basename = typeof file.basename === "string" && file.basename.trim() !== "" ? file.basename : (_a = file.path.split("/").pop()) == null ? void 0 : _a.replace(/\.md$/i, "");
+  return basename != null ? basename : file.path;
+}
+function deriveDate(file, cache) {
+  var _a, _b, _c, _d;
+  const frontmatterDate = normalizeDateValue((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.date);
+  if (frontmatterDate) {
+    return frontmatterDate;
+  }
+  const filenameDate = (_c = (_b = file.path.split("/").pop()) == null ? void 0 : _b.match(/\d{4}-\d{2}-\d{2}/)) == null ? void 0 : _c[0];
+  if (filenameDate) {
+    return filenameDate;
+  }
+  return normalizeDateValue((_d = file.stat) == null ? void 0 : _d.ctime);
+}
+function normalizeDateValue(value) {
+  var _a;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return new Date(value).toISOString().slice(0, 10);
+  }
+  if (typeof value !== "string") {
+    return void 0;
+  }
+  return (_a = value.match(/\d{4}-\d{2}-\d{2}/)) == null ? void 0 : _a[0];
+}
+function createExcerpt(markdown) {
+  const withoutFrontmatter = markdown.replace(/^---\s*\n[\s\S]*?\n---\s*/, "");
+  const withoutComments = withoutFrontmatter.replace(/%%[\s\S]*?%%/g, "");
+  const withoutHeadings = withoutComments.replace(/^\s{0,3}#{1,6}\s.*$/gm, "");
+  const withoutTagOnlyLines = withoutHeadings.split(/\r?\n/).filter((line) => !/^\s*(#[\p{L}\p{N}_/-]+\s*)+$/u.test(line)).join("\n");
+  return withoutTagOnlyLines.replace(/\s+/g, " ").trim().slice(0, 200).trim();
+}
+function createContentHash(value) {
+  let hash = 0;
+  for (const character of value) {
+    hash = (hash << 5) - hash + character.charCodeAt(0) | 0;
+  }
+  return Math.abs(hash).toString(36);
+}
 var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   constructor() {
     super(...arguments);
@@ -91,12 +135,20 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       this.settings.journalTags
     ));
   }
-  showMemory() {
+  async showMemory() {
     const journalNotes = this.discoverJournalNotes();
-    new import_obsidian.Notice(`Gentle Memories found ${journalNotes.length} journal note${journalNotes.length === 1 ? "" : "s"}. Memory display is not implemented yet.`);
+    for (const journalNote of journalNotes) {
+      const memory = await this.createMemoryEntry(journalNote);
+      if (memory) {
+        new MemoryModal(this.app, memory, this.settings.aiEnabled).open();
+        return true;
+      }
+    }
+    new import_obsidian.Notice("No journal notes found for the configured tags.");
+    return false;
   }
   showManualMemory() {
-    this.showMemory();
+    void this.showMemory();
   }
   queueStartupMemoryDisplay() {
     if (!this.settings.showOnStartup) {
@@ -106,8 +158,11 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       return;
     }
     this.app.workspace.onLayoutReady(() => {
-      this.showMemory();
-      void this.recordStartupMemoryShown(Date.now());
+      void this.showMemory().then((shown) => {
+        if (shown) {
+          void this.recordStartupMemoryShown(Date.now());
+        }
+      });
     });
   }
   canShowStartupMemory(now) {
@@ -135,6 +190,48 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       settings: this.settings,
       lastStartupMemoryShownAt: this.lastStartupMemoryShownAt
     });
+  }
+  async createMemoryEntry(file) {
+    const cache = this.app.metadataCache.getFileCache(file);
+    const content = await this.app.vault.cachedRead(file);
+    const excerpt = createExcerpt(content);
+    if (excerpt === "") {
+      return null;
+    }
+    return {
+      path: file.path,
+      title: deriveTitle(file),
+      date: deriveDate(file, cache),
+      excerpt,
+      contentHash: createContentHash(excerpt)
+    };
+  }
+};
+var MemoryModal = class extends import_obsidian.Modal {
+  constructor(app, memory, aiEnabled) {
+    super(app);
+    this.memory = memory;
+    this.aiEnabled = aiEnabled;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl("h2", { text: this.memory.title });
+    if (this.memory.date) {
+      contentEl.createEl("p", {
+        cls: "gentle-memories-date",
+        text: this.memory.date
+      });
+    }
+    contentEl.createEl("p", {
+      cls: "gentle-memories-excerpt",
+      text: this.memory.excerpt
+    });
+    const buttonContainer = contentEl.createDiv({ cls: "gentle-memories-buttons" });
+    const buttons = new import_obsidian.Setting(buttonContainer).addButton((button) => button.setButtonText("Open note")).addButton((button) => button.setButtonText("Next")).addButton((button) => button.setButtonText("Close").onClick(() => this.close()));
+    if (this.aiEnabled) {
+      buttons.addButton((button) => button.setButtonText("Generate reflection"));
+    }
   }
 };
 var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {

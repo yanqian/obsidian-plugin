@@ -77,9 +77,9 @@
     {
       "id": "F010",
       "description": "Shown memory contains title, excerpt, required buttons, and date when derivable.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {

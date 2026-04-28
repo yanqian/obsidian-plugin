@@ -1,4 +1,4 @@
-import { getAllTags, Notice, Plugin, PluginSettingTab, Setting, type CachedMetadata, type TFile } from "obsidian";
+import { getAllTags, Modal, Notice, Plugin, PluginSettingTab, Setting, type CachedMetadata, type TFile } from "obsidian";
 
 interface PluginSettings {
   journalTags: string[];
@@ -12,6 +12,14 @@ interface PluginSettings {
 interface PluginData {
   settings?: Partial<PluginSettings>;
   lastStartupMemoryShownAt?: number;
+}
+
+interface MemoryEntry {
+  path: string;
+  title: string;
+  date?: string;
+  excerpt: string;
+  contentHash: string;
 }
 
 const DEFAULT_SETTINGS: PluginSettings = {
@@ -73,6 +81,68 @@ function normalizeSettings(value: unknown): PluginSettings {
   };
 }
 
+function deriveTitle(file: TFile): string {
+  const basename = typeof file.basename === "string" && file.basename.trim() !== ""
+    ? file.basename
+    : file.path.split("/").pop()?.replace(/\.md$/i, "");
+
+  return basename ?? file.path;
+}
+
+function deriveDate(file: TFile, cache: CachedMetadata | null): string | undefined {
+  const frontmatterDate = normalizeDateValue(cache?.frontmatter?.date);
+
+  if (frontmatterDate) {
+    return frontmatterDate;
+  }
+
+  const filenameDate = file.path.split("/").pop()?.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+
+  if (filenameDate) {
+    return filenameDate;
+  }
+
+  return normalizeDateValue(file.stat?.ctime);
+}
+
+function normalizeDateValue(value: unknown): string | undefined {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return new Date(value).toISOString().slice(0, 10);
+  }
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  return value.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+}
+
+function createExcerpt(markdown: string): string {
+  const withoutFrontmatter = markdown.replace(/^---\s*\n[\s\S]*?\n---\s*/, "");
+  const withoutComments = withoutFrontmatter.replace(/%%[\s\S]*?%%/g, "");
+  const withoutHeadings = withoutComments.replace(/^\s{0,3}#{1,6}\s.*$/gm, "");
+  const withoutTagOnlyLines = withoutHeadings
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*(#[\p{L}\p{N}_/-]+\s*)+$/u.test(line))
+    .join("\n");
+
+  return withoutTagOnlyLines.replace(/\s+/g, " ").trim().slice(0, 200).trim();
+}
+
+function createContentHash(value: string): string {
+  let hash = 0;
+
+  for (const character of value) {
+    hash = ((hash << 5) - hash + character.charCodeAt(0)) | 0;
+  }
+
+  return Math.abs(hash).toString(36);
+}
+
 export default class GentleMemoriesPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
   private lastStartupMemoryShownAt: number | undefined;
@@ -101,13 +171,24 @@ export default class GentleMemoriesPlugin extends Plugin {
       ));
   }
 
-  showMemory(): void {
+  async showMemory(): Promise<boolean> {
     const journalNotes = this.discoverJournalNotes();
-    new Notice(`Gentle Memories found ${journalNotes.length} journal note${journalNotes.length === 1 ? "" : "s"}. Memory display is not implemented yet.`);
+
+    for (const journalNote of journalNotes) {
+      const memory = await this.createMemoryEntry(journalNote);
+
+      if (memory) {
+        new MemoryModal(this.app, memory, this.settings.aiEnabled).open();
+        return true;
+      }
+    }
+
+    new Notice("No journal notes found for the configured tags.");
+    return false;
   }
 
   showManualMemory(): void {
-    this.showMemory();
+    void this.showMemory();
   }
 
   private queueStartupMemoryDisplay(): void {
@@ -120,8 +201,11 @@ export default class GentleMemoriesPlugin extends Plugin {
     }
 
     this.app.workspace.onLayoutReady(() => {
-      this.showMemory();
-      void this.recordStartupMemoryShown(Date.now());
+      void this.showMemory().then((shown) => {
+        if (shown) {
+          void this.recordStartupMemoryShown(Date.now());
+        }
+      });
     });
   }
 
@@ -158,6 +242,62 @@ export default class GentleMemoriesPlugin extends Plugin {
       settings: this.settings,
       lastStartupMemoryShownAt: this.lastStartupMemoryShownAt
     });
+  }
+
+  private async createMemoryEntry(file: TFile): Promise<MemoryEntry | null> {
+    const cache = this.app.metadataCache.getFileCache(file);
+    const content = await this.app.vault.cachedRead(file);
+    const excerpt = createExcerpt(content);
+
+    if (excerpt === "") {
+      return null;
+    }
+
+    return {
+      path: file.path,
+      title: deriveTitle(file),
+      date: deriveDate(file, cache),
+      excerpt,
+      contentHash: createContentHash(excerpt)
+    };
+  }
+}
+
+class MemoryModal extends Modal {
+  constructor(
+    app: GentleMemoriesPlugin["app"],
+    private readonly memory: MemoryEntry,
+    private readonly aiEnabled: boolean
+  ) {
+    super(app);
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl("h2", { text: this.memory.title });
+
+    if (this.memory.date) {
+      contentEl.createEl("p", {
+        cls: "gentle-memories-date",
+        text: this.memory.date
+      });
+    }
+
+    contentEl.createEl("p", {
+      cls: "gentle-memories-excerpt",
+      text: this.memory.excerpt
+    });
+
+    const buttonContainer = contentEl.createDiv({ cls: "gentle-memories-buttons" });
+    const buttons = new Setting(buttonContainer)
+      .addButton((button) => button.setButtonText("Open note"))
+      .addButton((button) => button.setButtonText("Next"))
+      .addButton((button) => button.setButtonText("Close").onClick(() => this.close()));
+
+    if (this.aiEnabled) {
+      buttons.addButton((button) => button.setButtonText("Generate reflection"));
+    }
   }
 }
 

@@ -99,11 +99,53 @@ for (const snippet of requiredDiscoverySnippets) {
 
 const originalModuleLoad = Module._load;
 const notices = [];
+const renderedModals = [];
 let layoutCallbacks = [];
 
 class MockNotice {
   constructor(message) {
     notices.push(message);
+  }
+}
+
+class MockElement {
+  constructor() {
+    this.texts = [];
+    this.buttons = [];
+  }
+
+  empty() {
+    this.texts.length = 0;
+    this.buttons.length = 0;
+  }
+
+  createEl(_tagName, options = {}) {
+    if (typeof options.text === "string") {
+      this.texts.push(options.text);
+    }
+
+    return new MockElement();
+  }
+
+  createDiv() {
+    return this;
+  }
+}
+
+class MockModal {
+  constructor(app) {
+    this.app = app;
+    this.contentEl = new MockElement();
+    this.closed = false;
+  }
+
+  open() {
+    this.onOpen();
+    renderedModals.push(this.contentEl);
+  }
+
+  close() {
+    this.closed = true;
   }
 }
 
@@ -139,20 +181,59 @@ class MockPluginSettingTab {
   }
 }
 
-class MockSetting {}
+class MockButton {
+  constructor(element) {
+    this.element = element;
+  }
+
+  setButtonText(text) {
+    this.element.buttons.push(text);
+    return this;
+  }
+
+  onClick() {
+    return this;
+  }
+}
+
+class MockSetting {
+  constructor(containerEl) {
+    this.containerEl = containerEl;
+  }
+
+  addButton(callback) {
+    callback(new MockButton(this.containerEl));
+    return this;
+  }
+}
 
 function createMockApp() {
-  const markdownFiles = [{ path: "Journal.md" }];
+  const markdownFiles = [{
+    path: "Memories/2024-03-15 Journal.md",
+    basename: "2024-03-15 Journal",
+    stat: { ctime: new Date("2024-03-16T00:00:00.000Z").getTime() }
+  }];
 
   return {
     vault: {
       getMarkdownFiles() {
         return markdownFiles;
+      },
+      async cachedRead() {
+        return [
+          "---",
+          "date: 2024-03-14",
+          "tags: [journal]",
+          "---",
+          "# A heading to skip",
+          "#journal",
+          "A compact memory excerpt with enough detail to display."
+        ].join("\n");
       }
     },
     metadataCache: {
       getFileCache() {
-        return { __allTags: ["#journal"] };
+        return { __allTags: ["#journal"], frontmatter: { date: "2024-03-14" } };
       }
     },
     workspace: {
@@ -169,6 +250,7 @@ Module._load = function loadWithObsidianMock(request, parent, isMain) {
       getAllTags(cache) {
         return cache?.__allTags;
       },
+      Modal: MockModal,
       Notice: MockNotice,
       Plugin: MockPlugin,
       PluginSettingTab: MockPluginSettingTab,
@@ -190,6 +272,47 @@ const fixedNow = new Date("2026-04-28T00:00:00.000Z").getTime();
 Date.now = () => fixedNow;
 
 const configuredTags = ["journal", "diary", "note"];
+
+async function flushPromises() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+function assertMemoryModal(message, { expectAiButton = false } = {}) {
+  if (renderedModals.length !== 1) {
+    throw new Error(message);
+  }
+
+  const modal = renderedModals[0];
+  const text = modal.texts.join("\n");
+  const buttons = modal.buttons;
+
+  if (!text.includes("2024-03-15 Journal")) {
+    throw new Error("Shown memory must contain the note title");
+  }
+
+  if (!text.includes("2024-03-14")) {
+    throw new Error("Shown memory must contain the derivable date");
+  }
+
+  if (!text.includes("A compact memory excerpt with enough detail to display.")) {
+    throw new Error("Shown memory must contain the generated excerpt");
+  }
+
+  for (const label of ["Open note", "Next", "Close"]) {
+    if (!buttons.includes(label)) {
+      throw new Error(`Shown memory must include the ${label} button`);
+    }
+  }
+
+  if (expectAiButton && !buttons.includes("Generate reflection")) {
+    throw new Error("Shown memory must include the Generate reflection button when AI is enabled");
+  }
+
+  if (!expectAiButton && buttons.includes("Generate reflection")) {
+    throw new Error("Shown memory must omit the Generate reflection button when AI is disabled");
+  }
+}
 
 if (noteHasConfiguredJournalTag(null, configuredTags)) {
   throw new Error("Journal discovery must reject notes without metadata");
@@ -213,6 +336,7 @@ if (typeof GentleMemoriesPlugin !== "function") {
 
 layoutCallbacks = [];
 notices.length = 0;
+renderedModals.length = 0;
 const disabledStartupPlugin = new GentleMemoriesPlugin(createMockApp());
 disabledStartupPlugin.data = { settings: { showOnStartup: false } };
 await disabledStartupPlugin.onload();
@@ -232,8 +356,15 @@ if (!disabledStartupShowMemoryCommand) {
 }
 
 disabledStartupShowMemoryCommand.callback();
+await flushPromises();
 
-if (notices.length !== 1 || !notices[0].includes("Gentle Memories found 1 journal note")) {
+if (notices.length !== 0) {
+  throw new Error("Manual show memory command must display a memory instead of the placeholder notice");
+}
+
+try {
+  assertMemoryModal("Manual show memory command must display a memory when showOnStartup is false");
+} catch (error) {
   throw new Error("Manual show memory command must display a memory when showOnStartup is false");
 }
 
@@ -243,6 +374,17 @@ if (layoutCallbacks.length !== 0) {
 
 layoutCallbacks = [];
 notices.length = 0;
+renderedModals.length = 0;
+const aiEnabledManualPlugin = new GentleMemoriesPlugin(createMockApp());
+aiEnabledManualPlugin.data = { settings: { showOnStartup: false, aiEnabled: true } };
+await aiEnabledManualPlugin.onload();
+aiEnabledManualPlugin.commands.find((command) => command.id === "show-memory")?.callback();
+await flushPromises();
+assertMemoryModal("Manual show memory command must include AI button when AI is enabled", { expectAiButton: true });
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
 const enabledStartupPlugin = new GentleMemoriesPlugin(createMockApp());
 enabledStartupPlugin.data = { settings: { showOnStartup: true } };
 await enabledStartupPlugin.onload();
@@ -256,8 +398,15 @@ if (notices.length !== 0) {
 }
 
 layoutCallbacks.forEach((callback) => callback());
+await flushPromises();
 
-if (notices.length !== 1 || !notices[0].includes("Gentle Memories found 1 journal note")) {
+if (notices.length !== 0) {
+  throw new Error("Startup display must show a memory modal instead of the placeholder notice");
+}
+
+try {
+  assertMemoryModal("Startup display must show a memory modal when showOnStartup is true");
+} catch (error) {
   throw new Error("Startup display must show a memory notice when showOnStartup is true");
 }
 
@@ -267,6 +416,7 @@ if (enabledStartupPlugin.data?.lastStartupMemoryShownAt !== fixedNow) {
 
 layoutCallbacks = [];
 notices.length = 0;
+renderedModals.length = 0;
 const recentStartupPlugin = new GentleMemoriesPlugin(createMockApp());
 recentStartupPlugin.data = {
   settings: {
@@ -287,6 +437,7 @@ if (notices.length !== 0) {
 
 layoutCallbacks = [];
 notices.length = 0;
+renderedModals.length = 0;
 const elapsedStartupPlugin = new GentleMemoriesPlugin(createMockApp());
 elapsedStartupPlugin.data = {
   settings: {
@@ -302,8 +453,15 @@ if (layoutCallbacks.length !== 1) {
 }
 
 layoutCallbacks.forEach((callback) => callback());
+await flushPromises();
 
-if (notices.length !== 1 || !notices[0].includes("Gentle Memories found 1 journal note")) {
+if (notices.length !== 0) {
+  throw new Error("Startup display must show a memory modal instead of the placeholder notice after minDaysBetweenStartupShows has elapsed");
+}
+
+try {
+  assertMemoryModal("Startup display must show a memory modal after minDaysBetweenStartupShows has elapsed");
+} catch (error) {
   throw new Error("Startup display must show a memory notice after minDaysBetweenStartupShows has elapsed");
 }
 
