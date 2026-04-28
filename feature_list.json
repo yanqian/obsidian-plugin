@@ -85,9 +85,9 @@
     {
       "id": "F011",
       "description": "Open note button opens the source note.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {

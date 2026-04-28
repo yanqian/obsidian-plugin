@@ -16,6 +16,7 @@ interface PluginData {
 
 interface MemoryEntry {
   path: string;
+  sourceFile: TFile;
   title: string;
   date?: string;
   excerpt: string;
@@ -255,6 +256,7 @@ export default class GentleMemoriesPlugin extends Plugin {
 
     return {
       path: file.path,
+      sourceFile: file,
       title: deriveTitle(file),
       date: deriveDate(file, cache),
       excerpt,
@@ -291,13 +293,22 @@ class MemoryModal extends Modal {
 
     const buttonContainer = contentEl.createDiv({ cls: "gentle-memories-buttons" });
     const buttons = new Setting(buttonContainer)
-      .addButton((button) => button.setButtonText("Open note"))
+      .addButton((button) => button
+        .setButtonText("Open note")
+        .onClick(() => {
+          void this.openSourceNote();
+        }))
       .addButton((button) => button.setButtonText("Next"))
       .addButton((button) => button.setButtonText("Close").onClick(() => this.close()));
 
     if (this.aiEnabled) {
       buttons.addButton((button) => button.setButtonText("Generate reflection"));
     }
+  }
+
+  private async openSourceNote(): Promise<void> {
+    await this.app.workspace.getLeaf(false).openFile(this.memory.sourceFile);
+    this.close();
   }
 }
 

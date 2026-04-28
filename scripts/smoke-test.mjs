@@ -100,6 +100,7 @@ for (const snippet of requiredDiscoverySnippets) {
 const originalModuleLoad = Module._load;
 const notices = [];
 const renderedModals = [];
+const openedFiles = [];
 let layoutCallbacks = [];
 
 class MockNotice {
@@ -112,11 +113,13 @@ class MockElement {
   constructor() {
     this.texts = [];
     this.buttons = [];
+    this.buttonHandlers = new Map();
   }
 
   empty() {
     this.texts.length = 0;
     this.buttons.length = 0;
+    this.buttonHandlers.clear();
   }
 
   createEl(_tagName, options = {}) {
@@ -184,14 +187,17 @@ class MockPluginSettingTab {
 class MockButton {
   constructor(element) {
     this.element = element;
+    this.text = "";
   }
 
   setButtonText(text) {
+    this.text = text;
     this.element.buttons.push(text);
     return this;
   }
 
-  onClick() {
+  onClick(callback) {
+    this.element.buttonHandlers.set(this.text, callback);
     return this;
   }
 }
@@ -239,6 +245,13 @@ function createMockApp() {
     workspace: {
       onLayoutReady(callback) {
         layoutCallbacks.push(callback);
+      },
+      getLeaf() {
+        return {
+          async openFile(file) {
+            openedFiles.push(file);
+          }
+        };
       }
     }
   };
@@ -314,6 +327,17 @@ function assertMemoryModal(message, { expectAiButton = false } = {}) {
   }
 }
 
+async function clickModalButton(label) {
+  const handler = renderedModals.at(-1)?.buttonHandlers.get(label);
+
+  if (typeof handler !== "function") {
+    throw new Error(`Shown memory ${label} button must have a click handler`);
+  }
+
+  handler();
+  await flushPromises();
+}
+
 if (noteHasConfiguredJournalTag(null, configuredTags)) {
   throw new Error("Journal discovery must reject notes without metadata");
 }
@@ -337,6 +361,7 @@ if (typeof GentleMemoriesPlugin !== "function") {
 layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
+openedFiles.length = 0;
 const disabledStartupPlugin = new GentleMemoriesPlugin(createMockApp());
 disabledStartupPlugin.data = { settings: { showOnStartup: false } };
 await disabledStartupPlugin.onload();
@@ -368,6 +393,12 @@ try {
   throw new Error("Manual show memory command must display a memory when showOnStartup is false");
 }
 
+await clickModalButton("Open note");
+
+if (openedFiles.length !== 1 || openedFiles[0]?.path !== "Memories/2024-03-15 Journal.md") {
+  throw new Error("Open note button must open the source note");
+}
+
 if (layoutCallbacks.length !== 0) {
   throw new Error("Manual show memory command must not depend on startup layout scheduling");
 }
@@ -375,6 +406,7 @@ if (layoutCallbacks.length !== 0) {
 layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
+openedFiles.length = 0;
 const aiEnabledManualPlugin = new GentleMemoriesPlugin(createMockApp());
 aiEnabledManualPlugin.data = { settings: { showOnStartup: false, aiEnabled: true } };
 await aiEnabledManualPlugin.onload();
@@ -385,6 +417,7 @@ assertMemoryModal("Manual show memory command must include AI button when AI is 
 layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
+openedFiles.length = 0;
 const enabledStartupPlugin = new GentleMemoriesPlugin(createMockApp());
 enabledStartupPlugin.data = { settings: { showOnStartup: true } };
 await enabledStartupPlugin.onload();
@@ -417,6 +450,7 @@ if (enabledStartupPlugin.data?.lastStartupMemoryShownAt !== fixedNow) {
 layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
+openedFiles.length = 0;
 const recentStartupPlugin = new GentleMemoriesPlugin(createMockApp());
 recentStartupPlugin.data = {
   settings: {
@@ -438,6 +472,7 @@ if (notices.length !== 0) {
 layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
+openedFiles.length = 0;
 const elapsedStartupPlugin = new GentleMemoriesPlugin(createMockApp());
 elapsedStartupPlugin.data = {
   settings: {

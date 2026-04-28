@@ -200,6 +200,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     }
     return {
       path: file.path,
+      sourceFile: file,
       title: deriveTitle(file),
       date: deriveDate(file, cache),
       excerpt,
@@ -228,10 +229,16 @@ var MemoryModal = class extends import_obsidian.Modal {
       text: this.memory.excerpt
     });
     const buttonContainer = contentEl.createDiv({ cls: "gentle-memories-buttons" });
-    const buttons = new import_obsidian.Setting(buttonContainer).addButton((button) => button.setButtonText("Open note")).addButton((button) => button.setButtonText("Next")).addButton((button) => button.setButtonText("Close").onClick(() => this.close()));
+    const buttons = new import_obsidian.Setting(buttonContainer).addButton((button) => button.setButtonText("Open note").onClick(() => {
+      void this.openSourceNote();
+    })).addButton((button) => button.setButtonText("Next")).addButton((button) => button.setButtonText("Close").onClick(() => this.close()));
     if (this.aiEnabled) {
       buttons.addButton((button) => button.setButtonText("Generate reflection"));
     }
+  }
+  async openSourceNote() {
+    await this.app.workspace.getLeaf(false).openFile(this.memory.sourceFile);
+    this.close();
   }
 };
 var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
