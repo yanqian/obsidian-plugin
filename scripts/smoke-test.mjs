@@ -43,6 +43,44 @@ if (!mainSource.includes("id: SHOW_MEMORY_COMMAND_ID") || !mainSource.includes("
   throw new Error("main.ts must register the Gentle Memories: Show memory command");
 }
 
+const requiredSettingNames = [
+  "Journal tags",
+  "Show on startup",
+  "Minimum days between startup shows",
+  "Enable AI",
+  "API key",
+  "Cache AI responses"
+];
+
+for (const settingName of requiredSettingNames) {
+  if (!mainSource.includes(`.setName("${settingName}")`)) {
+    throw new Error(`main.ts must expose the ${settingName} setting`);
+  }
+}
+
+const requiredSettingKeys = [
+  "journalTags",
+  "showOnStartup",
+  "minDaysBetweenStartupShows",
+  "aiEnabled",
+  "apiKey",
+  "cacheAiResponses"
+];
+
+for (const settingKey of requiredSettingKeys) {
+  if (!mainSource.includes(settingKey)) {
+    throw new Error(`main.ts must persist the ${settingKey} setting`);
+  }
+}
+
+if (!mainSource.includes("text.inputEl.type = \"number\"")) {
+  throw new Error("main.ts must use a numeric input for minimum days between startup shows");
+}
+
+if (!mainSource.includes("text.inputEl.type = \"password\"")) {
+  throw new Error("main.ts must use a password-style input for the API key");
+}
+
 const response = await fetch(`http://127.0.0.1:${port}/health`);
 
 if (!response.ok) {

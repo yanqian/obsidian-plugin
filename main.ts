@@ -21,6 +21,37 @@ const DEFAULT_SETTINGS: PluginSettings = {
 const SHOW_MEMORY_COMMAND_ID = "show-memory";
 const SHOW_MEMORY_COMMAND_NAME = "Show memory";
 
+function normalizeJournalTags(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [...DEFAULT_SETTINGS.journalTags];
+  }
+
+  const tags = value
+    .filter((tag): tag is string => typeof tag === "string")
+    .map((tag) => tag.trim().replace(/^#/, ""))
+    .filter(Boolean);
+
+  return tags.length > 0 ? tags : [...DEFAULT_SETTINGS.journalTags];
+}
+
+function normalizeSettings(value: unknown): PluginSettings {
+  const saved = value && typeof value === "object" ? value as Partial<PluginSettings> : {};
+  const minDays = Number(saved.minDaysBetweenStartupShows);
+
+  return {
+    journalTags: normalizeJournalTags(saved.journalTags),
+    showOnStartup: typeof saved.showOnStartup === "boolean" ? saved.showOnStartup : DEFAULT_SETTINGS.showOnStartup,
+    minDaysBetweenStartupShows: Number.isFinite(minDays) && minDays >= 0
+      ? Math.floor(minDays)
+      : DEFAULT_SETTINGS.minDaysBetweenStartupShows,
+    aiEnabled: typeof saved.aiEnabled === "boolean" ? saved.aiEnabled : DEFAULT_SETTINGS.aiEnabled,
+    apiKey: typeof saved.apiKey === "string" && saved.apiKey.trim() !== "" ? saved.apiKey.trim() : undefined,
+    cacheAiResponses: typeof saved.cacheAiResponses === "boolean"
+      ? saved.cacheAiResponses
+      : DEFAULT_SETTINGS.cacheAiResponses
+  };
+}
+
 export default class GentleMemoriesPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
 
@@ -40,10 +71,7 @@ export default class GentleMemoriesPlugin extends Plugin {
 
   async loadSettings(): Promise<void> {
     const saved = await this.loadData();
-    this.settings = {
-      ...DEFAULT_SETTINGS,
-      ...(saved?.settings ?? {})
-    };
+    this.settings = normalizeSettings(saved?.settings);
   }
 
   async saveSettings(): Promise<void> {
@@ -71,10 +99,7 @@ class GentleMemoriesSettingTab extends PluginSettingTab {
           .setPlaceholder("journal, diary, note")
           .setValue(this.plugin.settings.journalTags.join(", "))
           .onChange(async (value) => {
-            this.plugin.settings.journalTags = value
-              .split(",")
-              .map((tag) => tag.trim().replace(/^#/, ""))
-              .filter(Boolean);
+            this.plugin.settings.journalTags = normalizeJournalTags(value.split(","));
             await this.plugin.saveSettings();
           });
       });
@@ -93,12 +118,17 @@ class GentleMemoriesSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("Minimum days between startup shows")
       .addText((text) => {
+        text.inputEl.type = "number";
+        text.inputEl.min = "0";
+        text.inputEl.step = "1";
         text
           .setPlaceholder("1")
           .setValue(String(this.plugin.settings.minDaysBetweenStartupShows))
           .onChange(async (value) => {
             const parsed = Number.parseInt(value, 10);
-            this.plugin.settings.minDaysBetweenStartupShows = Number.isFinite(parsed) ? parsed : 1;
+            this.plugin.settings.minDaysBetweenStartupShows = Number.isFinite(parsed) && parsed >= 0
+              ? parsed
+              : DEFAULT_SETTINGS.minDaysBetweenStartupShows;
             await this.plugin.saveSettings();
           });
       });

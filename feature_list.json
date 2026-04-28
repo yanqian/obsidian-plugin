@@ -20,7 +20,7 @@
     {
       "id": "F004",
       "description": "Settings tab exposes journalTags, showOnStartup, minDaysBetweenStartupShows, aiEnabled, apiKey, and cacheAiResponses.",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F005",

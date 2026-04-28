@@ -35,6 +35,25 @@ var DEFAULT_SETTINGS = {
 };
 var SHOW_MEMORY_COMMAND_ID = "show-memory";
 var SHOW_MEMORY_COMMAND_NAME = "Show memory";
+function normalizeJournalTags(value) {
+  if (!Array.isArray(value)) {
+    return [...DEFAULT_SETTINGS.journalTags];
+  }
+  const tags = value.filter((tag) => typeof tag === "string").map((tag) => tag.trim().replace(/^#/, "")).filter(Boolean);
+  return tags.length > 0 ? tags : [...DEFAULT_SETTINGS.journalTags];
+}
+function normalizeSettings(value) {
+  const saved = value && typeof value === "object" ? value : {};
+  const minDays = Number(saved.minDaysBetweenStartupShows);
+  return {
+    journalTags: normalizeJournalTags(saved.journalTags),
+    showOnStartup: typeof saved.showOnStartup === "boolean" ? saved.showOnStartup : DEFAULT_SETTINGS.showOnStartup,
+    minDaysBetweenStartupShows: Number.isFinite(minDays) && minDays >= 0 ? Math.floor(minDays) : DEFAULT_SETTINGS.minDaysBetweenStartupShows,
+    aiEnabled: typeof saved.aiEnabled === "boolean" ? saved.aiEnabled : DEFAULT_SETTINGS.aiEnabled,
+    apiKey: typeof saved.apiKey === "string" && saved.apiKey.trim() !== "" ? saved.apiKey.trim() : void 0,
+    cacheAiResponses: typeof saved.cacheAiResponses === "boolean" ? saved.cacheAiResponses : DEFAULT_SETTINGS.cacheAiResponses
+  };
+}
 var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   constructor() {
     super(...arguments);
@@ -52,12 +71,8 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     this.addSettingTab(new GentleMemoriesSettingTab(this));
   }
   async loadSettings() {
-    var _a;
     const saved = await this.loadData();
-    this.settings = {
-      ...DEFAULT_SETTINGS,
-      ...(_a = saved == null ? void 0 : saved.settings) != null ? _a : {}
-    };
+    this.settings = normalizeSettings(saved == null ? void 0 : saved.settings);
   }
   async saveSettings() {
     await this.saveData({
@@ -76,7 +91,7 @@ var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
     containerEl.createEl("h2", { text: "Gentle Memories" });
     new import_obsidian.Setting(containerEl).setName("Journal tags").setDesc("Comma-separated tags used to identify journal notes.").addText((text) => {
       text.setPlaceholder("journal, diary, note").setValue(this.plugin.settings.journalTags.join(", ")).onChange(async (value) => {
-        this.plugin.settings.journalTags = value.split(",").map((tag) => tag.trim().replace(/^#/, "")).filter(Boolean);
+        this.plugin.settings.journalTags = normalizeJournalTags(value.split(","));
         await this.plugin.saveSettings();
       });
     });
@@ -87,9 +102,12 @@ var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
       });
     });
     new import_obsidian.Setting(containerEl).setName("Minimum days between startup shows").addText((text) => {
+      text.inputEl.type = "number";
+      text.inputEl.min = "0";
+      text.inputEl.step = "1";
       text.setPlaceholder("1").setValue(String(this.plugin.settings.minDaysBetweenStartupShows)).onChange(async (value) => {
         const parsed = Number.parseInt(value, 10);
-        this.plugin.settings.minDaysBetweenStartupShows = Number.isFinite(parsed) ? parsed : 1;
+        this.plugin.settings.minDaysBetweenStartupShows = Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_SETTINGS.minDaysBetweenStartupShows;
         await this.plugin.saveSettings();
       });
     });

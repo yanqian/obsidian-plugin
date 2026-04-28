@@ -6,15 +6,15 @@ Initializer scaffold created. The project has a minimal TypeScript Obsidian plug
 
 Latest coding-agent verification: `./init.sh` passed on 2026-04-28, including dependency install check, TypeScript build, service startup, and smoke test.
 
-F001, F002, and F003 are complete. The TypeScript plugin scaffold builds successfully through the existing `npm run build` path, the smoke test validates the required `manifest.json` fields for local installation, and the plugin registers the command shown in Obsidian as `Gentle Memories: Show memory`.
+F001, F002, F003, and F004 are complete. The TypeScript plugin scaffold builds successfully through the existing `npm run build` path, the smoke test validates the required `manifest.json` fields for local installation, the plugin registers the command shown in Obsidian as `Gentle Memories: Show memory`, and the settings tab exposes and persists journal tags, startup behavior, minimum startup interval, AI enablement, API key, and AI response caching.
 
 ## Last completed feature
 
-F003 - Registers command named Gentle Memories: Show memory.
+F004 - Settings tab exposes journalTags, showOnStartup, minDaysBetweenStartupShows, aiEnabled, apiKey, and cacheAiResponses.
 
 ## Next feature
 
-F004 - Settings tab exposes journalTags, showOnStartup, minDaysBetweenStartupShows, aiEnabled, apiKey, and cacheAiResponses.
+F005 - Discovers Markdown notes tagged with #journal, #diary, or #note by default.
 
 ## Known issues
 
