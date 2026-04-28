@@ -77,12 +77,12 @@ export default class GentleMemoriesPlugin extends Plugin {
       id: SHOW_MEMORY_COMMAND_ID,
       name: SHOW_MEMORY_COMMAND_NAME,
       callback: () => {
-        const journalNotes = this.discoverJournalNotes();
-        new Notice(`Gentle Memories found ${journalNotes.length} journal note${journalNotes.length === 1 ? "" : "s"}. Memory display is not implemented yet.`);
+        this.showMemory();
       }
     });
 
     this.addSettingTab(new GentleMemoriesSettingTab(this));
+    this.queueStartupMemoryDisplay();
   }
 
   discoverJournalNotes(): TFile[] {
@@ -92,6 +92,21 @@ export default class GentleMemoriesPlugin extends Plugin {
         this.app.metadataCache.getFileCache(file),
         this.settings.journalTags
       ));
+  }
+
+  showMemory(): void {
+    const journalNotes = this.discoverJournalNotes();
+    new Notice(`Gentle Memories found ${journalNotes.length} journal note${journalNotes.length === 1 ? "" : "s"}. Memory display is not implemented yet.`);
+  }
+
+  private queueStartupMemoryDisplay(): void {
+    if (!this.settings.showOnStartup) {
+      return;
+    }
+
+    this.app.workspace.onLayoutReady(() => {
+      this.showMemory();
+    });
   }
 
   async loadSettings(): Promise<void> {

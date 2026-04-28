@@ -78,17 +78,29 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       id: SHOW_MEMORY_COMMAND_ID,
       name: SHOW_MEMORY_COMMAND_NAME,
       callback: () => {
-        const journalNotes = this.discoverJournalNotes();
-        new import_obsidian.Notice(`Gentle Memories found ${journalNotes.length} journal note${journalNotes.length === 1 ? "" : "s"}. Memory display is not implemented yet.`);
+        this.showMemory();
       }
     });
     this.addSettingTab(new GentleMemoriesSettingTab(this));
+    this.queueStartupMemoryDisplay();
   }
   discoverJournalNotes() {
     return this.app.vault.getMarkdownFiles().filter((file) => noteHasConfiguredJournalTag(
       this.app.metadataCache.getFileCache(file),
       this.settings.journalTags
     ));
+  }
+  showMemory() {
+    const journalNotes = this.discoverJournalNotes();
+    new import_obsidian.Notice(`Gentle Memories found ${journalNotes.length} journal note${journalNotes.length === 1 ? "" : "s"}. Memory display is not implemented yet.`);
+  }
+  queueStartupMemoryDisplay() {
+    if (!this.settings.showOnStartup) {
+      return;
+    }
+    this.app.workspace.onLayoutReady(() => {
+      this.showMemory();
+    });
   }
   async loadSettings() {
     const saved = await this.loadData();

@@ -98,6 +98,70 @@ for (const snippet of requiredDiscoverySnippets) {
 }
 
 const originalModuleLoad = Module._load;
+const notices = [];
+let layoutCallbacks = [];
+
+class MockNotice {
+  constructor(message) {
+    notices.push(message);
+  }
+}
+
+class MockPlugin {
+  constructor(app) {
+    this.app = app;
+    this.commands = [];
+    this.settingTabs = [];
+    this.data = undefined;
+  }
+
+  addCommand(command) {
+    this.commands.push(command);
+  }
+
+  addSettingTab(settingTab) {
+    this.settingTabs.push(settingTab);
+  }
+
+  async loadData() {
+    return this.data;
+  }
+
+  async saveData(data) {
+    this.data = data;
+  }
+}
+
+class MockPluginSettingTab {
+  constructor(app, plugin) {
+    this.app = app;
+    this.plugin = plugin;
+  }
+}
+
+class MockSetting {}
+
+function createMockApp() {
+  const markdownFiles = [{ path: "Journal.md" }];
+
+  return {
+    vault: {
+      getMarkdownFiles() {
+        return markdownFiles;
+      }
+    },
+    metadataCache: {
+      getFileCache() {
+        return { __allTags: ["#journal"] };
+      }
+    },
+    workspace: {
+      onLayoutReady(callback) {
+        layoutCallbacks.push(callback);
+      }
+    }
+  };
+}
 
 Module._load = function loadWithObsidianMock(request, parent, isMain) {
   if (request === "obsidian") {
@@ -105,17 +169,19 @@ Module._load = function loadWithObsidianMock(request, parent, isMain) {
       getAllTags(cache) {
         return cache?.__allTags;
       },
-      Notice: class Notice {},
-      Plugin: class Plugin {},
-      PluginSettingTab: class PluginSettingTab {},
-      Setting: class Setting {}
+      Notice: MockNotice,
+      Plugin: MockPlugin,
+      PluginSettingTab: MockPluginSettingTab,
+      Setting: MockSetting
     };
   }
 
   return originalModuleLoad.call(this, request, parent, isMain);
 };
 
-const { noteHasConfiguredJournalTag } = require("../main.js");
+const pluginModule = require("../main.js");
+const { noteHasConfiguredJournalTag } = pluginModule;
+const GentleMemoriesPlugin = pluginModule.default;
 Module._load = originalModuleLoad;
 
 const configuredTags = ["journal", "diary", "note"];
@@ -134,6 +200,44 @@ if (noteHasConfiguredJournalTag({ __allTags: ["#project"] }, configuredTags)) {
 
 if (!noteHasConfiguredJournalTag({ __allTags: ["#journal"] }, configuredTags)) {
   throw new Error("Journal discovery must accept notes with configured tags");
+}
+
+if (typeof GentleMemoriesPlugin !== "function") {
+  throw new Error("main.ts must export the Gentle Memories plugin class");
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+const disabledStartupPlugin = new GentleMemoriesPlugin(createMockApp());
+disabledStartupPlugin.data = { settings: { showOnStartup: false } };
+await disabledStartupPlugin.onload();
+
+if (layoutCallbacks.length !== 0) {
+  throw new Error("Startup display must not be queued when showOnStartup is false");
+}
+
+if (notices.length !== 0) {
+  throw new Error("Startup display must not show a notice when showOnStartup is false");
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+const enabledStartupPlugin = new GentleMemoriesPlugin(createMockApp());
+enabledStartupPlugin.data = { settings: { showOnStartup: true } };
+await enabledStartupPlugin.onload();
+
+if (layoutCallbacks.length !== 1) {
+  throw new Error("Startup display must be queued when showOnStartup is true");
+}
+
+if (notices.length !== 0) {
+  throw new Error("Startup display must wait until layout is ready");
+}
+
+layoutCallbacks.forEach((callback) => callback());
+
+if (notices.length !== 1 || !notices[0].includes("Gentle Memories found 1 journal note")) {
+  throw new Error("Startup display must show a memory notice when showOnStartup is true");
 }
 
 const response = await fetch(`http://127.0.0.1:${port}/health`);

@@ -53,9 +53,9 @@
     {
       "id": "F007",
       "description": "Startup display respects showOnStartup.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {
