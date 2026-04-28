@@ -184,6 +184,11 @@ const { noteHasConfiguredJournalTag } = pluginModule;
 const GentleMemoriesPlugin = pluginModule.default;
 Module._load = originalModuleLoad;
 
+const msPerDay = 24 * 60 * 60 * 1000;
+const originalDateNow = Date.now;
+const fixedNow = new Date("2026-04-28T00:00:00.000Z").getTime();
+Date.now = () => fixedNow;
+
 const configuredTags = ["journal", "diary", "note"];
 
 if (noteHasConfiguredJournalTag(null, configuredTags)) {
@@ -239,6 +244,54 @@ layoutCallbacks.forEach((callback) => callback());
 if (notices.length !== 1 || !notices[0].includes("Gentle Memories found 1 journal note")) {
   throw new Error("Startup display must show a memory notice when showOnStartup is true");
 }
+
+if (enabledStartupPlugin.data?.lastStartupMemoryShownAt !== fixedNow) {
+  throw new Error("Startup display must record when a startup memory is shown");
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+const recentStartupPlugin = new GentleMemoriesPlugin(createMockApp());
+recentStartupPlugin.data = {
+  settings: {
+    showOnStartup: true,
+    minDaysBetweenStartupShows: 3
+  },
+  lastStartupMemoryShownAt: fixedNow - (2 * msPerDay)
+};
+await recentStartupPlugin.onload();
+
+if (layoutCallbacks.length !== 0) {
+  throw new Error("Startup display must not be queued before minDaysBetweenStartupShows has elapsed");
+}
+
+if (notices.length !== 0) {
+  throw new Error("Startup display must not show a notice before minDaysBetweenStartupShows has elapsed");
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+const elapsedStartupPlugin = new GentleMemoriesPlugin(createMockApp());
+elapsedStartupPlugin.data = {
+  settings: {
+    showOnStartup: true,
+    minDaysBetweenStartupShows: 3
+  },
+  lastStartupMemoryShownAt: fixedNow - (4 * msPerDay)
+};
+await elapsedStartupPlugin.onload();
+
+if (layoutCallbacks.length !== 1) {
+  throw new Error("Startup display must be queued after minDaysBetweenStartupShows has elapsed");
+}
+
+layoutCallbacks.forEach((callback) => callback());
+
+if (notices.length !== 1 || !notices[0].includes("Gentle Memories found 1 journal note")) {
+  throw new Error("Startup display must show a memory notice after minDaysBetweenStartupShows has elapsed");
+}
+
+Date.now = originalDateNow;
 
 const response = await fetch(`http://127.0.0.1:${port}/health`);
 

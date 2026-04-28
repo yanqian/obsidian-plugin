@@ -36,6 +36,7 @@ var DEFAULT_SETTINGS = {
 };
 var SHOW_MEMORY_COMMAND_ID = "show-memory";
 var SHOW_MEMORY_COMMAND_NAME = "Show memory";
+var MS_PER_DAY = 24 * 60 * 60 * 1e3;
 function toComparableTag(tag) {
   return tag.trim().replace(/^#/, "").toLowerCase();
 }
@@ -98,17 +99,38 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     if (!this.settings.showOnStartup) {
       return;
     }
+    if (!this.canShowStartupMemory(Date.now())) {
+      return;
+    }
     this.app.workspace.onLayoutReady(() => {
       this.showMemory();
+      void this.recordStartupMemoryShown(Date.now());
     });
+  }
+  canShowStartupMemory(now) {
+    if (this.settings.minDaysBetweenStartupShows <= 0 || this.lastStartupMemoryShownAt === void 0) {
+      return true;
+    }
+    const elapsedDays = (now - this.lastStartupMemoryShownAt) / MS_PER_DAY;
+    return elapsedDays >= this.settings.minDaysBetweenStartupShows;
+  }
+  async recordStartupMemoryShown(shownAt) {
+    this.lastStartupMemoryShownAt = shownAt;
+    await this.savePluginData();
   }
   async loadSettings() {
     const saved = await this.loadData();
     this.settings = normalizeSettings(saved == null ? void 0 : saved.settings);
+    const lastStartupMemoryShownAt = Number(saved == null ? void 0 : saved.lastStartupMemoryShownAt);
+    this.lastStartupMemoryShownAt = Number.isFinite(lastStartupMemoryShownAt) && lastStartupMemoryShownAt >= 0 ? lastStartupMemoryShownAt : void 0;
   }
   async saveSettings() {
+    await this.savePluginData();
+  }
+  async savePluginData() {
     await this.saveData({
-      settings: this.settings
+      settings: this.settings,
+      lastStartupMemoryShownAt: this.lastStartupMemoryShownAt
     });
   }
 };

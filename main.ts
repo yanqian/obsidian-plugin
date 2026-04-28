@@ -9,6 +9,11 @@ interface PluginSettings {
   cacheAiResponses: boolean;
 }
 
+interface PluginData {
+  settings?: Partial<PluginSettings>;
+  lastStartupMemoryShownAt?: number;
+}
+
 const DEFAULT_SETTINGS: PluginSettings = {
   journalTags: ["journal", "diary", "note"],
   showOnStartup: true,
@@ -20,6 +25,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
 
 const SHOW_MEMORY_COMMAND_ID = "show-memory";
 const SHOW_MEMORY_COMMAND_NAME = "Show memory";
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function toComparableTag(tag: string): string {
   return tag.trim().replace(/^#/, "").toLowerCase();
@@ -69,6 +75,7 @@ function normalizeSettings(value: unknown): PluginSettings {
 
 export default class GentleMemoriesPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
+  private lastStartupMemoryShownAt: number | undefined;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -104,19 +111,48 @@ export default class GentleMemoriesPlugin extends Plugin {
       return;
     }
 
+    if (!this.canShowStartupMemory(Date.now())) {
+      return;
+    }
+
     this.app.workspace.onLayoutReady(() => {
       this.showMemory();
+      void this.recordStartupMemoryShown(Date.now());
     });
   }
 
+  private canShowStartupMemory(now: number): boolean {
+    if (this.settings.minDaysBetweenStartupShows <= 0 || this.lastStartupMemoryShownAt === undefined) {
+      return true;
+    }
+
+    const elapsedDays = (now - this.lastStartupMemoryShownAt) / MS_PER_DAY;
+    return elapsedDays >= this.settings.minDaysBetweenStartupShows;
+  }
+
+  private async recordStartupMemoryShown(shownAt: number): Promise<void> {
+    this.lastStartupMemoryShownAt = shownAt;
+    await this.savePluginData();
+  }
+
   async loadSettings(): Promise<void> {
-    const saved = await this.loadData();
+    const saved = await this.loadData() as PluginData | undefined;
     this.settings = normalizeSettings(saved?.settings);
+
+    const lastStartupMemoryShownAt = Number(saved?.lastStartupMemoryShownAt);
+    this.lastStartupMemoryShownAt = Number.isFinite(lastStartupMemoryShownAt) && lastStartupMemoryShownAt >= 0
+      ? lastStartupMemoryShownAt
+      : undefined;
   }
 
   async saveSettings(): Promise<void> {
+    await this.savePluginData();
+  }
+
+  private async savePluginData(): Promise<void> {
     await this.saveData({
-      settings: this.settings
+      settings: this.settings,
+      lastStartupMemoryShownAt: this.lastStartupMemoryShownAt
     });
   }
 }

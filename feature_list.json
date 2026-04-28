@@ -61,9 +61,9 @@
     {
       "id": "F008",
       "description": "Startup display respects minDaysBetweenStartupShows.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {
