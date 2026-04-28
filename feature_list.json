@@ -15,7 +15,7 @@
     {
       "id": "F003",
       "description": "Registers command named Gentle Memories: Show memory.",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F004",

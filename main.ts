@@ -18,6 +18,9 @@ const DEFAULT_SETTINGS: PluginSettings = {
   cacheAiResponses: true
 };
 
+const SHOW_MEMORY_COMMAND_ID = "show-memory";
+const SHOW_MEMORY_COMMAND_NAME = "Show memory";
+
 export default class GentleMemoriesPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
 
@@ -25,8 +28,8 @@ export default class GentleMemoriesPlugin extends Plugin {
     await this.loadSettings();
 
     this.addCommand({
-      id: "show-memory",
-      name: "Show memory",
+      id: SHOW_MEMORY_COMMAND_ID,
+      name: SHOW_MEMORY_COMMAND_NAME,
       callback: () => {
         new Notice("Gentle Memories is initialized. Memory display is not implemented yet.");
       }

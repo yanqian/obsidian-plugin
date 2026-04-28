@@ -33,6 +33,8 @@ var DEFAULT_SETTINGS = {
   apiKey: void 0,
   cacheAiResponses: true
 };
+var SHOW_MEMORY_COMMAND_ID = "show-memory";
+var SHOW_MEMORY_COMMAND_NAME = "Show memory";
 var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   constructor() {
     super(...arguments);
@@ -41,8 +43,8 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   async onload() {
     await this.loadSettings();
     this.addCommand({
-      id: "show-memory",
-      name: "Show memory",
+      id: SHOW_MEMORY_COMMAND_ID,
+      name: SHOW_MEMORY_COMMAND_NAME,
       callback: () => {
         new import_obsidian.Notice("Gentle Memories is initialized. Memory display is not implemented yet.");
       }
