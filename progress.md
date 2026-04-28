@@ -4,17 +4,17 @@
 
 Initializer scaffold created. The project has a minimal TypeScript Obsidian plugin shell, build tooling, an idempotent `init.sh`, and a smoke-test helper service.
 
-Latest initializer verification: `./init.sh` passed, including dependency install, build, service startup, and smoke test.
+Latest coding-agent verification: `./init.sh` passed on 2026-04-28, including dependency install check, TypeScript build, service startup, and smoke test.
 
-No product features are implemented yet. All entries in `feature_list.json` remain `passes=false` for the next coding agent runs.
+F001 is complete. The TypeScript plugin scaffold builds successfully through the existing `npm run build` path and the required startup smoke test passes.
 
 ## Last completed feature
 
-None.
+F001 - Obsidian plugin scaffold using TypeScript builds successfully.
 
 ## Next feature
 
-F001 - Obsidian plugin scaffold using TypeScript builds successfully.
+F002 - Plugin has a valid Obsidian manifest.json for local installation.
 
 ## Known issues
 

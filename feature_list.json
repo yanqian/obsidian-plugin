@@ -5,7 +5,7 @@
     {
       "id": "F001",
       "description": "Obsidian plugin scaffold using TypeScript builds successfully.",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F002",
