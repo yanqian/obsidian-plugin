@@ -5,102 +5,162 @@
     {
       "id": "F001",
       "description": "Obsidian plugin scaffold using TypeScript builds successfully.",
-      "passes": true
+      "passes": true,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F002",
       "description": "Plugin has a valid Obsidian manifest.json for local installation.",
-      "passes": true
+      "passes": true,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F003",
       "description": "Registers command named Gentle Memories: Show memory.",
-      "passes": true
+      "passes": true,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F004",
       "description": "Settings tab exposes journalTags, showOnStartup, minDaysBetweenStartupShows, aiEnabled, apiKey, and cacheAiResponses.",
-      "passes": true
+      "passes": true,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F005",
       "description": "Discovers Markdown notes tagged with #journal, #diary, or #note by default.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F006",
       "description": "Does not discover notes without configured tags.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F007",
       "description": "Startup display respects showOnStartup.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F008",
       "description": "Startup display respects minDaysBetweenStartupShows.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F009",
       "description": "Manual command displays a memory even when startup display is disabled.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F010",
       "description": "Shown memory contains title, excerpt, required buttons, and date when derivable.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F011",
       "description": "Open note button opens the source note.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F012",
       "description": "Next button does not repeat the same note when another eligible note exists.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F013",
       "description": "Display history persists across plugin reloads.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F014",
       "description": "AI is disabled by default.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F015",
       "description": "No network request occurs before the user clicks Generate reflection.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F016",
       "description": "No network request occurs while AI is disabled.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F017",
       "description": "AI request payload excludes full note content, file paths, vault names, and display history.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F018",
       "description": "AI cache is keyed by ${path}:${contentHash}.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F019",
       "description": "Empty or unusable notes are not shown.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     },
     {
       "id": "F020",
       "description": "Manual verification plan scenarios from SPEC.md section 14 are documented and runnable.",
-      "passes": false
+      "passes": false,
+      "status": "todo",
+      "attempts": 3,
+      "last_error": ""
     }
   ]
 }
