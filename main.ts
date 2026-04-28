@@ -1,4 +1,4 @@
-import { Notice, Plugin, PluginSettingTab, Setting } from "obsidian";
+import { getAllTags, Notice, Plugin, PluginSettingTab, Setting, type CachedMetadata, type TFile } from "obsidian";
 
 interface PluginSettings {
   journalTags: string[];
@@ -21,6 +21,10 @@ const DEFAULT_SETTINGS: PluginSettings = {
 const SHOW_MEMORY_COMMAND_ID = "show-memory";
 const SHOW_MEMORY_COMMAND_NAME = "Show memory";
 
+function toComparableTag(tag: string): string {
+  return tag.trim().replace(/^#/, "").toLowerCase();
+}
+
 function normalizeJournalTags(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [...DEFAULT_SETTINGS.journalTags];
@@ -32,6 +36,17 @@ function normalizeJournalTags(value: unknown): string[] {
     .filter(Boolean);
 
   return tags.length > 0 ? tags : [...DEFAULT_SETTINGS.journalTags];
+}
+
+export function noteHasConfiguredJournalTag(cache: CachedMetadata | null, journalTags: string[]): boolean {
+  if (!cache) {
+    return false;
+  }
+
+  const configuredTags = new Set(normalizeJournalTags(journalTags).map(toComparableTag));
+  const noteTags = getAllTags(cache)?.map(toComparableTag) ?? [];
+
+  return noteTags.some((tag) => configuredTags.has(tag));
 }
 
 function normalizeSettings(value: unknown): PluginSettings {
@@ -62,11 +77,21 @@ export default class GentleMemoriesPlugin extends Plugin {
       id: SHOW_MEMORY_COMMAND_ID,
       name: SHOW_MEMORY_COMMAND_NAME,
       callback: () => {
-        new Notice("Gentle Memories is initialized. Memory display is not implemented yet.");
+        const journalNotes = this.discoverJournalNotes();
+        new Notice(`Gentle Memories found ${journalNotes.length} journal note${journalNotes.length === 1 ? "" : "s"}. Memory display is not implemented yet.`);
       }
     });
 
     this.addSettingTab(new GentleMemoriesSettingTab(this));
+  }
+
+  discoverJournalNotes(): TFile[] {
+    return this.app.vault
+      .getMarkdownFiles()
+      .filter((file) => noteHasConfiguredJournalTag(
+        this.app.metadataCache.getFileCache(file),
+        this.settings.journalTags
+      ));
   }
 
   async loadSettings(): Promise<void> {

@@ -81,6 +81,20 @@ if (!mainSource.includes("text.inputEl.type = \"password\"")) {
   throw new Error("main.ts must use a password-style input for the API key");
 }
 
+const requiredDiscoverySnippets = [
+  "journalTags: [\"journal\", \"diary\", \"note\"]",
+  "noteHasConfiguredJournalTag",
+  "getMarkdownFiles()",
+  "metadataCache.getFileCache(file)",
+  "getAllTags(cache)"
+];
+
+for (const snippet of requiredDiscoverySnippets) {
+  if (!mainSource.includes(snippet)) {
+    throw new Error(`main.ts must discover Markdown notes with default journal tags: missing ${snippet}`);
+  }
+}
+
 const response = await fetch(`http://127.0.0.1:${port}/health`);
 
 if (!response.ok) {

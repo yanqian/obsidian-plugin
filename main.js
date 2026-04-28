@@ -21,7 +21,8 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // main.ts
 var main_exports = {};
 __export(main_exports, {
-  default: () => GentleMemoriesPlugin
+  default: () => GentleMemoriesPlugin,
+  noteHasConfiguredJournalTag: () => noteHasConfiguredJournalTag
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
@@ -35,12 +36,24 @@ var DEFAULT_SETTINGS = {
 };
 var SHOW_MEMORY_COMMAND_ID = "show-memory";
 var SHOW_MEMORY_COMMAND_NAME = "Show memory";
+function toComparableTag(tag) {
+  return tag.trim().replace(/^#/, "").toLowerCase();
+}
 function normalizeJournalTags(value) {
   if (!Array.isArray(value)) {
     return [...DEFAULT_SETTINGS.journalTags];
   }
   const tags = value.filter((tag) => typeof tag === "string").map((tag) => tag.trim().replace(/^#/, "")).filter(Boolean);
   return tags.length > 0 ? tags : [...DEFAULT_SETTINGS.journalTags];
+}
+function noteHasConfiguredJournalTag(cache, journalTags) {
+  var _a, _b;
+  if (!cache) {
+    return false;
+  }
+  const configuredTags = new Set(normalizeJournalTags(journalTags).map(toComparableTag));
+  const noteTags = (_b = (_a = (0, import_obsidian.getAllTags)(cache)) == null ? void 0 : _a.map(toComparableTag)) != null ? _b : [];
+  return noteTags.some((tag) => configuredTags.has(tag));
 }
 function normalizeSettings(value) {
   const saved = value && typeof value === "object" ? value : {};
@@ -65,10 +78,17 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       id: SHOW_MEMORY_COMMAND_ID,
       name: SHOW_MEMORY_COMMAND_NAME,
       callback: () => {
-        new import_obsidian.Notice("Gentle Memories is initialized. Memory display is not implemented yet.");
+        const journalNotes = this.discoverJournalNotes();
+        new import_obsidian.Notice(`Gentle Memories found ${journalNotes.length} journal note${journalNotes.length === 1 ? "" : "s"}. Memory display is not implemented yet.`);
       }
     });
     this.addSettingTab(new GentleMemoriesSettingTab(this));
+  }
+  discoverJournalNotes() {
+    return this.app.vault.getMarkdownFiles().filter((file) => noteHasConfiguredJournalTag(
+      this.app.metadataCache.getFileCache(file),
+      this.settings.journalTags
+    ));
   }
   async loadSettings() {
     const saved = await this.loadData();

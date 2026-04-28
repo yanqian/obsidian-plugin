@@ -37,9 +37,9 @@
     {
       "id": "F005",
       "description": "Discovers Markdown notes tagged with #journal, #diary, or #note by default.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {
