@@ -4,13 +4,13 @@
 
 Initializer scaffold created. The project has a minimal TypeScript Obsidian plugin shell, a valid local-install Obsidian manifest, build tooling, an idempotent `init.sh`, and a smoke-test helper service.
 
-Latest coding-agent verification: `./init.sh` passed on 2026-04-28, including dependency install check, TypeScript build, service startup, and smoke test.
+Latest coding-agent verification: `./init.sh` passed on 2026-04-28, including dependency install check, TypeScript build, service startup, and smoke test. `AGENTS.md` now documents extended feature state fields for long-running agent orchestration.
 
 F001, F002, F003, and F004 are complete. The TypeScript plugin scaffold builds successfully through the existing `npm run build` path, the smoke test validates the required `manifest.json` fields for local installation, the plugin registers the command shown in Obsidian as `Gentle Memories: Show memory`, and the settings tab exposes and persists journal tags, startup behavior, minimum startup interval, AI enablement, API key, and AI response caching.
 
 ## Last completed feature
 
-F004 - Settings tab exposes journalTags, showOnStartup, minDaysBetweenStartupShows, aiEnabled, apiKey, and cacheAiResponses.
+Documentation update - AGENTS.md supports extended feature state fields while preserving existing startup and work rules.
 
 ## Next feature
 
