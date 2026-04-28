@@ -93,9 +93,9 @@
     {
       "id": "F012",
       "description": "Next button does not repeat the same note when another eligible note exists.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {

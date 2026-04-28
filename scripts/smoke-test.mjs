@@ -213,33 +213,46 @@ class MockSetting {
   }
 }
 
-function createMockApp() {
-  const markdownFiles = [{
-    path: "Memories/2024-03-15 Journal.md",
-    basename: "2024-03-15 Journal",
-    stat: { ctime: new Date("2024-03-16T00:00:00.000Z").getTime() }
-  }];
+function createMockApp(entries = [{
+  path: "Memories/2024-03-15 Journal.md",
+  basename: "2024-03-15 Journal",
+  date: "2024-03-14",
+  excerpt: "A compact memory excerpt with enough detail to display."
+}]) {
+  const markdownFiles = entries.map((entry) => ({
+    path: entry.path,
+    basename: entry.basename,
+    stat: { ctime: new Date(`${entry.date}T00:00:00.000Z`).getTime() }
+  }));
+  const entriesByPath = new Map(entries.map((entry) => [entry.path, entry]));
 
   return {
     vault: {
       getMarkdownFiles() {
         return markdownFiles;
       },
-      async cachedRead() {
+      async cachedRead(file) {
+        const entry = entriesByPath.get(file.path);
+
+        if (!entry) {
+          throw new Error(`Unexpected file read: ${file.path}`);
+        }
+
         return [
           "---",
-          "date: 2024-03-14",
+          `date: ${entry.date}`,
           "tags: [journal]",
           "---",
           "# A heading to skip",
           "#journal",
-          "A compact memory excerpt with enough detail to display."
+          entry.excerpt
         ].join("\n");
       }
     },
     metadataCache: {
-      getFileCache() {
-        return { __allTags: ["#journal"], frontmatter: { date: "2024-03-14" } };
+      getFileCache(file) {
+        const entry = entriesByPath.get(file.path);
+        return { __allTags: ["#journal"], frontmatter: { date: entry?.date } };
       }
     },
     workspace: {
@@ -287,11 +300,17 @@ Date.now = () => fixedNow;
 const configuredTags = ["journal", "diary", "note"];
 
 async function flushPromises() {
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let index = 0; index < 5; index += 1) {
+    await Promise.resolve();
+  }
 }
 
-function assertMemoryModal(message, { expectAiButton = false } = {}) {
+function assertMemoryModal(message, {
+  expectAiButton = false,
+  expectedTitle = "2024-03-15 Journal",
+  expectedDate = "2024-03-14",
+  expectedExcerpt = "A compact memory excerpt with enough detail to display."
+} = {}) {
   if (renderedModals.length !== 1) {
     throw new Error(message);
   }
@@ -300,15 +319,15 @@ function assertMemoryModal(message, { expectAiButton = false } = {}) {
   const text = modal.texts.join("\n");
   const buttons = modal.buttons;
 
-  if (!text.includes("2024-03-15 Journal")) {
+  if (!text.includes(expectedTitle)) {
     throw new Error("Shown memory must contain the note title");
   }
 
-  if (!text.includes("2024-03-14")) {
+  if (!text.includes(expectedDate)) {
     throw new Error("Shown memory must contain the derivable date");
   }
 
-  if (!text.includes("A compact memory excerpt with enough detail to display.")) {
+  if (!text.includes(expectedExcerpt)) {
     throw new Error("Shown memory must contain the generated excerpt");
   }
 
@@ -402,6 +421,36 @@ if (openedFiles.length !== 1 || openedFiles[0]?.path !== "Memories/2024-03-15 Jo
 if (layoutCallbacks.length !== 0) {
   throw new Error("Manual show memory command must not depend on startup layout scheduling");
 }
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
+const twoMemoryPlugin = new GentleMemoriesPlugin(createMockApp([
+  {
+    path: "Memories/2024-03-15 Journal.md",
+    basename: "2024-03-15 Journal",
+    date: "2024-03-14",
+    excerpt: "A compact memory excerpt with enough detail to display."
+  },
+  {
+    path: "Memories/2024-04-20 Diary.md",
+    basename: "2024-04-20 Diary",
+    date: "2024-04-20",
+    excerpt: "A second eligible memory that should appear after clicking next."
+  }
+]));
+twoMemoryPlugin.data = { settings: { showOnStartup: false } };
+await twoMemoryPlugin.onload();
+twoMemoryPlugin.commands.find((command) => command.id === "show-memory")?.callback();
+await flushPromises();
+assertMemoryModal("Manual show memory command must display the first available memory");
+await clickModalButton("Next");
+assertMemoryModal("Next button must show a different eligible note when one exists", {
+  expectedTitle: "2024-04-20 Diary",
+  expectedDate: "2024-04-20",
+  expectedExcerpt: "A second eligible memory that should appear after clicking next."
+});
 
 layoutCallbacks = [];
 notices.length = 0;

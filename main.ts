@@ -173,19 +173,38 @@ export default class GentleMemoriesPlugin extends Plugin {
   }
 
   async showMemory(): Promise<boolean> {
+    const memory = await this.selectMemory();
+
+    if (memory) {
+      new MemoryModal(this.app, memory, this.settings.aiEnabled, (currentPath) => this.selectMemory(currentPath)).open();
+      return true;
+    }
+
+    new Notice("No journal notes found for the configured tags.");
+    return false;
+  }
+
+  private async selectMemory(excludedPath?: string): Promise<MemoryEntry | null> {
     const journalNotes = this.discoverJournalNotes();
+    const memories: MemoryEntry[] = [];
 
     for (const journalNote of journalNotes) {
       const memory = await this.createMemoryEntry(journalNote);
 
       if (memory) {
-        new MemoryModal(this.app, memory, this.settings.aiEnabled).open();
-        return true;
+        memories.push(memory);
       }
     }
 
-    new Notice("No journal notes found for the configured tags.");
-    return false;
+    if (memories.length === 0) {
+      return null;
+    }
+
+    const selectableMemories = excludedPath && memories.some((memory) => memory.path !== excludedPath)
+      ? memories.filter((memory) => memory.path !== excludedPath)
+      : memories;
+
+    return selectableMemories[0] ?? null;
   }
 
   showManualMemory(): void {
@@ -268,8 +287,9 @@ export default class GentleMemoriesPlugin extends Plugin {
 class MemoryModal extends Modal {
   constructor(
     app: GentleMemoriesPlugin["app"],
-    private readonly memory: MemoryEntry,
-    private readonly aiEnabled: boolean
+    private memory: MemoryEntry,
+    private readonly aiEnabled: boolean,
+    private readonly selectNextMemory: (currentPath: string) => Promise<MemoryEntry | null>
   ) {
     super(app);
   }
@@ -298,7 +318,11 @@ class MemoryModal extends Modal {
         .onClick(() => {
           void this.openSourceNote();
         }))
-      .addButton((button) => button.setButtonText("Next"))
+      .addButton((button) => button
+        .setButtonText("Next")
+        .onClick(() => {
+          void this.showNextMemory();
+        }))
       .addButton((button) => button.setButtonText("Close").onClick(() => this.close()));
 
     if (this.aiEnabled) {
@@ -309,6 +333,15 @@ class MemoryModal extends Modal {
   private async openSourceNote(): Promise<void> {
     await this.app.workspace.getLeaf(false).openFile(this.memory.sourceFile);
     this.close();
+  }
+
+  private async showNextMemory(): Promise<void> {
+    const nextMemory = await this.selectNextMemory(this.memory.path);
+
+    if (nextMemory) {
+      this.memory = nextMemory;
+      this.onOpen();
+    }
   }
 }
 

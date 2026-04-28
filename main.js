@@ -136,16 +136,29 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     ));
   }
   async showMemory() {
-    const journalNotes = this.discoverJournalNotes();
-    for (const journalNote of journalNotes) {
-      const memory = await this.createMemoryEntry(journalNote);
-      if (memory) {
-        new MemoryModal(this.app, memory, this.settings.aiEnabled).open();
-        return true;
-      }
+    const memory = await this.selectMemory();
+    if (memory) {
+      new MemoryModal(this.app, memory, this.settings.aiEnabled, (currentPath) => this.selectMemory(currentPath)).open();
+      return true;
     }
     new import_obsidian.Notice("No journal notes found for the configured tags.");
     return false;
+  }
+  async selectMemory(excludedPath) {
+    var _a;
+    const journalNotes = this.discoverJournalNotes();
+    const memories = [];
+    for (const journalNote of journalNotes) {
+      const memory = await this.createMemoryEntry(journalNote);
+      if (memory) {
+        memories.push(memory);
+      }
+    }
+    if (memories.length === 0) {
+      return null;
+    }
+    const selectableMemories = excludedPath && memories.some((memory) => memory.path !== excludedPath) ? memories.filter((memory) => memory.path !== excludedPath) : memories;
+    return (_a = selectableMemories[0]) != null ? _a : null;
   }
   showManualMemory() {
     void this.showMemory();
@@ -209,10 +222,11 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   }
 };
 var MemoryModal = class extends import_obsidian.Modal {
-  constructor(app, memory, aiEnabled) {
+  constructor(app, memory, aiEnabled, selectNextMemory) {
     super(app);
     this.memory = memory;
     this.aiEnabled = aiEnabled;
+    this.selectNextMemory = selectNextMemory;
   }
   onOpen() {
     const { contentEl } = this;
@@ -231,7 +245,9 @@ var MemoryModal = class extends import_obsidian.Modal {
     const buttonContainer = contentEl.createDiv({ cls: "gentle-memories-buttons" });
     const buttons = new import_obsidian.Setting(buttonContainer).addButton((button) => button.setButtonText("Open note").onClick(() => {
       void this.openSourceNote();
-    })).addButton((button) => button.setButtonText("Next")).addButton((button) => button.setButtonText("Close").onClick(() => this.close()));
+    })).addButton((button) => button.setButtonText("Next").onClick(() => {
+      void this.showNextMemory();
+    })).addButton((button) => button.setButtonText("Close").onClick(() => this.close()));
     if (this.aiEnabled) {
       buttons.addButton((button) => button.setButtonText("Generate reflection"));
     }
@@ -239,6 +255,13 @@ var MemoryModal = class extends import_obsidian.Modal {
   async openSourceNote() {
     await this.app.workspace.getLeaf(false).openFile(this.memory.sourceFile);
     this.close();
+  }
+  async showNextMemory() {
+    const nextMemory = await this.selectNextMemory(this.memory.path);
+    if (nextMemory) {
+      this.memory = nextMemory;
+      this.onOpen();
+    }
   }
 };
 var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
