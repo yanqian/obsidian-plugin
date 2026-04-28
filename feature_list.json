@@ -10,7 +10,7 @@
     {
       "id": "F002",
       "description": "Plugin has a valid Obsidian manifest.json for local installation.",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F003",

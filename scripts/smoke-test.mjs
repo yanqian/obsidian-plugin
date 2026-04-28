@@ -9,6 +9,23 @@ for (const file of requiredFiles) {
   }
 }
 
+const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
+const requiredManifestStrings = ["id", "name", "version", "minAppVersion", "description", "author"];
+
+for (const field of requiredManifestStrings) {
+  if (typeof manifest[field] !== "string" || manifest[field].trim() === "") {
+    throw new Error(`manifest.json must include a non-empty ${field} string`);
+  }
+}
+
+if (!/^[a-z0-9-]+$/.test(manifest.id)) {
+  throw new Error("manifest.json id must be lowercase kebab-case");
+}
+
+if (manifest.isDesktopOnly !== undefined && typeof manifest.isDesktopOnly !== "boolean") {
+  throw new Error("manifest.json isDesktopOnly must be a boolean when present");
+}
+
 const response = await fetch(`http://127.0.0.1:${port}/health`);
 
 if (!response.ok) {
