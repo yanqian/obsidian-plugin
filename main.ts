@@ -12,6 +12,22 @@ interface PluginSettings {
 interface PluginData {
   settings?: Partial<PluginSettings>;
   lastStartupMemoryShownAt?: number;
+  displayHistory?: Partial<DisplayHistory>;
+}
+
+interface DisplayHistory {
+  shown: Record<string, DisplayHistoryEntry>;
+  aiCache: Record<string, AiCacheEntry>;
+}
+
+interface DisplayHistoryEntry {
+  shownAt: string;
+  contentHash: string;
+}
+
+interface AiCacheEntry {
+  text: string;
+  generatedAt: string;
 }
 
 interface MemoryEntry {
@@ -30,6 +46,11 @@ const DEFAULT_SETTINGS: PluginSettings = {
   aiEnabled: false,
   apiKey: undefined,
   cacheAiResponses: true
+};
+
+const DEFAULT_DISPLAY_HISTORY: DisplayHistory = {
+  shown: {},
+  aiCache: {}
 };
 
 const SHOW_MEMORY_COMMAND_ID = "show-memory";
@@ -80,6 +101,46 @@ function normalizeSettings(value: unknown): PluginSettings {
       ? saved.cacheAiResponses
       : DEFAULT_SETTINGS.cacheAiResponses
   };
+}
+
+function normalizeDisplayHistory(value: unknown): DisplayHistory {
+  const saved = value && typeof value === "object" ? value as Partial<DisplayHistory> : {};
+  const shown: DisplayHistory["shown"] = {};
+  const aiCache: DisplayHistory["aiCache"] = {};
+
+  if (saved.shown && typeof saved.shown === "object") {
+    for (const [path, entry] of Object.entries(saved.shown)) {
+      if (
+        entry &&
+        typeof entry === "object" &&
+        typeof entry.shownAt === "string" &&
+        typeof entry.contentHash === "string"
+      ) {
+        shown[path] = {
+          shownAt: entry.shownAt,
+          contentHash: entry.contentHash
+        };
+      }
+    }
+  }
+
+  if (saved.aiCache && typeof saved.aiCache === "object") {
+    for (const [key, entry] of Object.entries(saved.aiCache)) {
+      if (
+        entry &&
+        typeof entry === "object" &&
+        typeof entry.text === "string" &&
+        typeof entry.generatedAt === "string"
+      ) {
+        aiCache[key] = {
+          text: entry.text,
+          generatedAt: entry.generatedAt
+        };
+      }
+    }
+  }
+
+  return { shown, aiCache };
 }
 
 function deriveTitle(file: TFile): string {
@@ -146,6 +207,7 @@ function createContentHash(value: string): string {
 
 export default class GentleMemoriesPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
+  private displayHistory: DisplayHistory = DEFAULT_DISPLAY_HISTORY;
   private lastStartupMemoryShownAt: number | undefined;
 
   async onload(): Promise<void> {
@@ -176,7 +238,14 @@ export default class GentleMemoriesPlugin extends Plugin {
     const memory = await this.selectMemory();
 
     if (memory) {
-      new MemoryModal(this.app, memory, this.settings.aiEnabled, (currentPath) => this.selectMemory(currentPath)).open();
+      new MemoryModal(
+        this.app,
+        memory,
+        this.settings.aiEnabled,
+        (currentPath) => this.selectMemory(currentPath),
+        (shownMemory) => this.recordMemoryShown(shownMemory, Date.now())
+      ).open();
+      await this.recordMemoryShown(memory, Date.now());
       return true;
     }
 
@@ -200,9 +269,11 @@ export default class GentleMemoriesPlugin extends Plugin {
       return null;
     }
 
-    const selectableMemories = excludedPath && memories.some((memory) => memory.path !== excludedPath)
+    const eligibleMemories = excludedPath && memories.some((memory) => memory.path !== excludedPath)
       ? memories.filter((memory) => memory.path !== excludedPath)
       : memories;
+    const neverShownMemories = eligibleMemories.filter((memory) => !this.displayHistory.shown[memory.path]);
+    const selectableMemories = neverShownMemories.length > 0 ? neverShownMemories : eligibleMemories;
 
     return selectableMemories[0] ?? null;
   }
@@ -243,9 +314,24 @@ export default class GentleMemoriesPlugin extends Plugin {
     await this.savePluginData();
   }
 
+  private async recordMemoryShown(memory: MemoryEntry, shownAt: number): Promise<void> {
+    this.displayHistory = {
+      ...this.displayHistory,
+      shown: {
+        ...this.displayHistory.shown,
+        [memory.path]: {
+          shownAt: new Date(shownAt).toISOString(),
+          contentHash: memory.contentHash
+        }
+      }
+    };
+    await this.savePluginData();
+  }
+
   async loadSettings(): Promise<void> {
     const saved = await this.loadData() as PluginData | undefined;
     this.settings = normalizeSettings(saved?.settings);
+    this.displayHistory = normalizeDisplayHistory(saved?.displayHistory);
 
     const lastStartupMemoryShownAt = Number(saved?.lastStartupMemoryShownAt);
     this.lastStartupMemoryShownAt = Number.isFinite(lastStartupMemoryShownAt) && lastStartupMemoryShownAt >= 0
@@ -260,7 +346,8 @@ export default class GentleMemoriesPlugin extends Plugin {
   private async savePluginData(): Promise<void> {
     await this.saveData({
       settings: this.settings,
-      lastStartupMemoryShownAt: this.lastStartupMemoryShownAt
+      lastStartupMemoryShownAt: this.lastStartupMemoryShownAt,
+      displayHistory: this.displayHistory
     });
   }
 
@@ -289,7 +376,8 @@ class MemoryModal extends Modal {
     app: GentleMemoriesPlugin["app"],
     private memory: MemoryEntry,
     private readonly aiEnabled: boolean,
-    private readonly selectNextMemory: (currentPath: string) => Promise<MemoryEntry | null>
+    private readonly selectNextMemory: (currentPath: string) => Promise<MemoryEntry | null>,
+    private readonly recordMemoryShown: (memory: MemoryEntry) => Promise<void>
   ) {
     super(app);
   }
@@ -341,6 +429,7 @@ class MemoryModal extends Modal {
     if (nextMemory) {
       this.memory = nextMemory;
       this.onOpen();
+      await this.recordMemoryShown(nextMemory);
     }
   }
 }

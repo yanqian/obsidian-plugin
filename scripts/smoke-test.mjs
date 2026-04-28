@@ -300,7 +300,7 @@ Date.now = () => fixedNow;
 const configuredTags = ["journal", "diary", "note"];
 
 async function flushPromises() {
-  for (let index = 0; index < 5; index += 1) {
+  for (let index = 0; index < 10; index += 1) {
     await Promise.resolve();
   }
 }
@@ -451,6 +451,72 @@ assertMemoryModal("Next button must show a different eligible note when one exis
   expectedDate: "2024-04-20",
   expectedExcerpt: "A second eligible memory that should appear after clicking next."
 });
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
+const historySourcePlugin = new GentleMemoriesPlugin(createMockApp([
+  {
+    path: "Memories/2024-03-15 Journal.md",
+    basename: "2024-03-15 Journal",
+    date: "2024-03-14",
+    excerpt: "A compact memory excerpt with enough detail to display."
+  },
+  {
+    path: "Memories/2024-04-20 Diary.md",
+    basename: "2024-04-20 Diary",
+    date: "2024-04-20",
+    excerpt: "A second eligible memory that should appear after reload."
+  }
+]));
+historySourcePlugin.data = { settings: { showOnStartup: false } };
+await historySourcePlugin.onload();
+historySourcePlugin.commands.find((command) => command.id === "show-memory")?.callback();
+await flushPromises();
+assertMemoryModal("Manual show memory command must display the first available memory before history exists");
+
+const firstHistoryEntry = historySourcePlugin.data?.displayHistory?.shown?.["Memories/2024-03-15 Journal.md"];
+
+if (!firstHistoryEntry || !firstHistoryEntry.shownAt.startsWith("2026-04-28") || typeof firstHistoryEntry.contentHash !== "string") {
+  throw new Error("Display history must persist the shown note path, timestamp, and content hash");
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
+const historyReloadedPlugin = new GentleMemoriesPlugin(createMockApp([
+  {
+    path: "Memories/2024-03-15 Journal.md",
+    basename: "2024-03-15 Journal",
+    date: "2024-03-14",
+    excerpt: "A compact memory excerpt with enough detail to display."
+  },
+  {
+    path: "Memories/2024-04-20 Diary.md",
+    basename: "2024-04-20 Diary",
+    date: "2024-04-20",
+    excerpt: "A second eligible memory that should appear after reload."
+  }
+]));
+historyReloadedPlugin.data = historySourcePlugin.data;
+await historyReloadedPlugin.onload();
+historyReloadedPlugin.commands.find((command) => command.id === "show-memory")?.callback();
+await flushPromises();
+assertMemoryModal("Display history must persist across plugin reloads and prefer an unshown note", {
+  expectedTitle: "2024-04-20 Diary",
+  expectedDate: "2024-04-20",
+  expectedExcerpt: "A second eligible memory that should appear after reload."
+});
+
+if (!historyReloadedPlugin.data?.displayHistory?.shown?.["Memories/2024-03-15 Journal.md"]) {
+  throw new Error("Display history must preserve entries loaded from plugin data");
+}
+
+if (!historyReloadedPlugin.data?.displayHistory?.shown?.["Memories/2024-04-20 Diary.md"]) {
+  throw new Error("Display history must add entries after reload");
+}
 
 layoutCallbacks = [];
 notices.length = 0;

@@ -101,9 +101,9 @@
     {
       "id": "F013",
       "description": "Display history persists across plugin reloads.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {

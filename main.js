@@ -34,6 +34,10 @@ var DEFAULT_SETTINGS = {
   apiKey: void 0,
   cacheAiResponses: true
 };
+var DEFAULT_DISPLAY_HISTORY = {
+  shown: {},
+  aiCache: {}
+};
 var SHOW_MEMORY_COMMAND_ID = "show-memory";
 var SHOW_MEMORY_COMMAND_NAME = "Show memory";
 var MS_PER_DAY = 24 * 60 * 60 * 1e3;
@@ -67,6 +71,32 @@ function normalizeSettings(value) {
     apiKey: typeof saved.apiKey === "string" && saved.apiKey.trim() !== "" ? saved.apiKey.trim() : void 0,
     cacheAiResponses: typeof saved.cacheAiResponses === "boolean" ? saved.cacheAiResponses : DEFAULT_SETTINGS.cacheAiResponses
   };
+}
+function normalizeDisplayHistory(value) {
+  const saved = value && typeof value === "object" ? value : {};
+  const shown = {};
+  const aiCache = {};
+  if (saved.shown && typeof saved.shown === "object") {
+    for (const [path, entry] of Object.entries(saved.shown)) {
+      if (entry && typeof entry === "object" && typeof entry.shownAt === "string" && typeof entry.contentHash === "string") {
+        shown[path] = {
+          shownAt: entry.shownAt,
+          contentHash: entry.contentHash
+        };
+      }
+    }
+  }
+  if (saved.aiCache && typeof saved.aiCache === "object") {
+    for (const [key, entry] of Object.entries(saved.aiCache)) {
+      if (entry && typeof entry === "object" && typeof entry.text === "string" && typeof entry.generatedAt === "string") {
+        aiCache[key] = {
+          text: entry.text,
+          generatedAt: entry.generatedAt
+        };
+      }
+    }
+  }
+  return { shown, aiCache };
 }
 function deriveTitle(file) {
   var _a;
@@ -116,6 +146,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   constructor() {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
+    this.displayHistory = DEFAULT_DISPLAY_HISTORY;
   }
   async onload() {
     await this.loadSettings();
@@ -138,7 +169,14 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   async showMemory() {
     const memory = await this.selectMemory();
     if (memory) {
-      new MemoryModal(this.app, memory, this.settings.aiEnabled, (currentPath) => this.selectMemory(currentPath)).open();
+      new MemoryModal(
+        this.app,
+        memory,
+        this.settings.aiEnabled,
+        (currentPath) => this.selectMemory(currentPath),
+        (shownMemory) => this.recordMemoryShown(shownMemory, Date.now())
+      ).open();
+      await this.recordMemoryShown(memory, Date.now());
       return true;
     }
     new import_obsidian.Notice("No journal notes found for the configured tags.");
@@ -157,7 +195,9 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     if (memories.length === 0) {
       return null;
     }
-    const selectableMemories = excludedPath && memories.some((memory) => memory.path !== excludedPath) ? memories.filter((memory) => memory.path !== excludedPath) : memories;
+    const eligibleMemories = excludedPath && memories.some((memory) => memory.path !== excludedPath) ? memories.filter((memory) => memory.path !== excludedPath) : memories;
+    const neverShownMemories = eligibleMemories.filter((memory) => !this.displayHistory.shown[memory.path]);
+    const selectableMemories = neverShownMemories.length > 0 ? neverShownMemories : eligibleMemories;
     return (_a = selectableMemories[0]) != null ? _a : null;
   }
   showManualMemory() {
@@ -189,9 +229,23 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     this.lastStartupMemoryShownAt = shownAt;
     await this.savePluginData();
   }
+  async recordMemoryShown(memory, shownAt) {
+    this.displayHistory = {
+      ...this.displayHistory,
+      shown: {
+        ...this.displayHistory.shown,
+        [memory.path]: {
+          shownAt: new Date(shownAt).toISOString(),
+          contentHash: memory.contentHash
+        }
+      }
+    };
+    await this.savePluginData();
+  }
   async loadSettings() {
     const saved = await this.loadData();
     this.settings = normalizeSettings(saved == null ? void 0 : saved.settings);
+    this.displayHistory = normalizeDisplayHistory(saved == null ? void 0 : saved.displayHistory);
     const lastStartupMemoryShownAt = Number(saved == null ? void 0 : saved.lastStartupMemoryShownAt);
     this.lastStartupMemoryShownAt = Number.isFinite(lastStartupMemoryShownAt) && lastStartupMemoryShownAt >= 0 ? lastStartupMemoryShownAt : void 0;
   }
@@ -201,7 +255,8 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   async savePluginData() {
     await this.saveData({
       settings: this.settings,
-      lastStartupMemoryShownAt: this.lastStartupMemoryShownAt
+      lastStartupMemoryShownAt: this.lastStartupMemoryShownAt,
+      displayHistory: this.displayHistory
     });
   }
   async createMemoryEntry(file) {
@@ -222,11 +277,12 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   }
 };
 var MemoryModal = class extends import_obsidian.Modal {
-  constructor(app, memory, aiEnabled, selectNextMemory) {
+  constructor(app, memory, aiEnabled, selectNextMemory, recordMemoryShown) {
     super(app);
     this.memory = memory;
     this.aiEnabled = aiEnabled;
     this.selectNextMemory = selectNextMemory;
+    this.recordMemoryShown = recordMemoryShown;
   }
   onOpen() {
     const { contentEl } = this;
@@ -261,6 +317,7 @@ var MemoryModal = class extends import_obsidian.Modal {
     if (nextMemory) {
       this.memory = nextMemory;
       this.onOpen();
+      await this.recordMemoryShown(nextMemory);
     }
   }
 };
