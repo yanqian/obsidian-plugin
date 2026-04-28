@@ -1,0 +1,106 @@
+{
+  "project": "Gentle Memories",
+  "source": "SPEC.md",
+  "features": [
+    {
+      "id": "F001",
+      "description": "Obsidian plugin scaffold using TypeScript builds successfully.",
+      "passes": false
+    },
+    {
+      "id": "F002",
+      "description": "Plugin has a valid Obsidian manifest.json for local installation.",
+      "passes": false
+    },
+    {
+      "id": "F003",
+      "description": "Registers command named Gentle Memories: Show memory.",
+      "passes": false
+    },
+    {
+      "id": "F004",
+      "description": "Settings tab exposes journalTags, showOnStartup, minDaysBetweenStartupShows, aiEnabled, apiKey, and cacheAiResponses.",
+      "passes": false
+    },
+    {
+      "id": "F005",
+      "description": "Discovers Markdown notes tagged with #journal, #diary, or #note by default.",
+      "passes": false
+    },
+    {
+      "id": "F006",
+      "description": "Does not discover notes without configured tags.",
+      "passes": false
+    },
+    {
+      "id": "F007",
+      "description": "Startup display respects showOnStartup.",
+      "passes": false
+    },
+    {
+      "id": "F008",
+      "description": "Startup display respects minDaysBetweenStartupShows.",
+      "passes": false
+    },
+    {
+      "id": "F009",
+      "description": "Manual command displays a memory even when startup display is disabled.",
+      "passes": false
+    },
+    {
+      "id": "F010",
+      "description": "Shown memory contains title, excerpt, required buttons, and date when derivable.",
+      "passes": false
+    },
+    {
+      "id": "F011",
+      "description": "Open note button opens the source note.",
+      "passes": false
+    },
+    {
+      "id": "F012",
+      "description": "Next button does not repeat the same note when another eligible note exists.",
+      "passes": false
+    },
+    {
+      "id": "F013",
+      "description": "Display history persists across plugin reloads.",
+      "passes": false
+    },
+    {
+      "id": "F014",
+      "description": "AI is disabled by default.",
+      "passes": false
+    },
+    {
+      "id": "F015",
+      "description": "No network request occurs before the user clicks Generate reflection.",
+      "passes": false
+    },
+    {
+      "id": "F016",
+      "description": "No network request occurs while AI is disabled.",
+      "passes": false
+    },
+    {
+      "id": "F017",
+      "description": "AI request payload excludes full note content, file paths, vault names, and display history.",
+      "passes": false
+    },
+    {
+      "id": "F018",
+      "description": "AI cache is keyed by ${path}:${contentHash}.",
+      "passes": false
+    },
+    {
+      "id": "F019",
+      "description": "Empty or unusable notes are not shown.",
+      "passes": false
+    },
+    {
+      "id": "F020",
+      "description": "Manual verification plan scenarios from SPEC.md section 14 are documented and runnable.",
+      "passes": false
+    }
+  ]
+}

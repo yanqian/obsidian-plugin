@@ -1,0 +1,25 @@
+{
+  "name": "gentle-memories",
+  "version": "0.0.0",
+  "description": "Gentle Memories Obsidian plugin scaffold.",
+  "main": "main.js",
+  "scripts": {
+    "build": "tsc --noEmit && node esbuild.config.mjs production",
+    "dev": "node esbuild.config.mjs",
+    "serve:smoke": "node scripts/smoke-server.mjs",
+    "smoke": "node scripts/smoke-test.mjs"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.21.5",
+    "obsidian": "^1.5.12",
+    "typescript": "^5.4.5"
+  }
+}
