@@ -109,9 +109,9 @@
     {
       "id": "F014",
       "description": "AI is disabled by default.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {

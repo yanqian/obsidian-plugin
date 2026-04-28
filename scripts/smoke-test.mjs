@@ -522,6 +522,22 @@ layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
 openedFiles.length = 0;
+const aiDefaultManualPlugin = new GentleMemoriesPlugin(createMockApp());
+aiDefaultManualPlugin.data = { settings: { showOnStartup: false } };
+await aiDefaultManualPlugin.onload();
+
+if (aiDefaultManualPlugin.settings.aiEnabled !== false) {
+  throw new Error("AI must be disabled by default when aiEnabled is not saved");
+}
+
+aiDefaultManualPlugin.commands.find((command) => command.id === "show-memory")?.callback();
+await flushPromises();
+assertMemoryModal("Manual show memory command must omit AI button by default");
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
 const aiEnabledManualPlugin = new GentleMemoriesPlugin(createMockApp());
 aiEnabledManualPlugin.data = { settings: { showOnStartup: false, aiEnabled: true } };
 await aiEnabledManualPlugin.onload();
