@@ -161,6 +161,30 @@
       "status": "done",
       "attempts": 4,
       "last_error": ""
+    },
+    {
+      "id": "F021",
+      "description": "Settings UI shows only the API key input for the selected AI provider while preserving hidden provider keys.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
+    },
+    {
+      "id": "F022",
+      "description": "Debug mode adds a settings-tab show-memory control and privacy-safe diagnostic logging.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
+    },
+    {
+      "id": "F023",
+      "description": "Memory display renders rich Obsidian Markdown note content with AI reflection first and Show more or Show less for long notes.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
     }
   ]
 }

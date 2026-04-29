@@ -53,17 +53,17 @@ Use a disposable Obsidian vault with this plugin installed from the repository r
    - Run: reload Obsidian or disable and re-enable the plugin.
    - Expected: no memory modal appears automatically.
 
-8. Enable AI without an API key; click `Generate reflection`; confirm the missing-key notice appears.
-   - Setup: enable AI, leave `API key` empty, and keep one eligible note.
+8. Enable AI without the selected provider API key; click `Generate reflection`; confirm the missing-key notice appears.
+   - Setup: enable AI, choose OpenAI or Claude, leave that provider's API key empty, and keep one eligible note.
    - Run: show a memory and click `Generate reflection`.
-   - Expected: Obsidian shows a missing API key notice and no reflection request succeeds.
+   - Expected: Obsidian shows a missing provider API key notice and no reflection request succeeds.
 
 9. Keep AI disabled; confirm no AI button appears.
    - Setup: turn off `Enable AI`.
    - Run: show a memory.
    - Expected: the modal has no `Generate reflection` button.
 
-10. Inspect the AI request implementation; confirm only the excerpt is sent.
-    - Setup: enable AI with a test key, use a note containing text that should not be uploaded outside the excerpt, and keep developer tools open.
+10. Inspect the AI request implementation; confirm only the excerpt is sent to the selected provider.
+    - Setup: enable AI with a test OpenAI or Claude key, use a note containing text that should not be uploaded outside the excerpt, and keep developer tools open.
     - Run: show that note, click `Generate reflection`, and inspect the request payload or run `npm run smoke`.
     - Expected: the request includes the displayed excerpt and excludes full note content, file paths, vault names, and display history.

@@ -50,7 +50,9 @@ const requiredSettingNames = [
   "Show on startup",
   "Minimum days between startup shows",
   "Enable AI",
-  "API key",
+  "AI provider",
+  "OpenAI API key",
+  "Claude API key",
   "Cache AI responses"
 ];
 
@@ -65,7 +67,9 @@ const requiredSettingKeys = [
   "showOnStartup",
   "minDaysBetweenStartupShows",
   "aiEnabled",
-  "apiKey",
+  "aiProvider",
+  "openAiApiKey",
+  "claudeApiKey",
   "cacheAiResponses"
 ];
 
@@ -79,8 +83,8 @@ if (!mainSource.includes("text.inputEl.type = \"number\"")) {
   throw new Error("main.ts must use a numeric input for minimum days between startup shows");
 }
 
-if (!mainSource.includes("text.inputEl.type = \"password\"")) {
-  throw new Error("main.ts must use a password-style input for the API key");
+if ((mainSource.match(/text\.inputEl\.type = "password"/g) ?? []).length < 2) {
+  throw new Error("main.ts must use password-style inputs for provider API keys");
 }
 
 const requiredDiscoverySnippets = [
@@ -202,6 +206,28 @@ class MockButton {
   }
 }
 
+class MockDropdown {
+  constructor() {
+    this.value = "";
+    this.options = new Map();
+  }
+
+  addOption(value, label) {
+    this.options.set(value, label);
+    return this;
+  }
+
+  setValue(value) {
+    this.value = value;
+    return this;
+  }
+
+  onChange(callback) {
+    this.callback = callback;
+    return this;
+  }
+}
+
 class MockSetting {
   constructor(containerEl) {
     this.containerEl = containerEl;
@@ -209,6 +235,11 @@ class MockSetting {
 
   addButton(callback) {
     callback(new MockButton(this.containerEl));
+    return this;
+  }
+
+  addDropdown(callback) {
+    callback(new MockDropdown());
     return this;
   }
 }
@@ -622,6 +653,14 @@ aiDefaultManualPlugin.commands.find((command) => command.id === "show-memory")?.
 await flushPromises();
 assertMemoryModal("Manual show memory command must omit AI button by default");
 
+const legacyApiKeyPlugin = new GentleMemoriesPlugin(createMockApp());
+legacyApiKeyPlugin.data = { settings: { showOnStartup: false, apiKey: "legacy-openai-key" } };
+await legacyApiKeyPlugin.onload();
+
+if (legacyApiKeyPlugin.settings.openAiApiKey !== "legacy-openai-key") {
+  throw new Error("Legacy apiKey setting must migrate to the OpenAI API key setting");
+}
+
 layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
@@ -650,7 +689,7 @@ try {
     settings: {
       showOnStartup: true,
       aiEnabled: true,
-      apiKey: "test-api-key"
+      openAiApiKey: "test-api-key"
     }
   };
   await aiEnabledStartupPlugin.onload();
@@ -683,7 +722,7 @@ try {
     settings: {
       showOnStartup: true,
       aiEnabled: false,
-      apiKey: "test-api-key"
+      openAiApiKey: "test-api-key"
     }
   };
   await disabledAiStartupPlugin.onload();
@@ -700,7 +739,7 @@ try {
     settings: {
       showOnStartup: false,
       aiEnabled: false,
-      apiKey: "test-api-key"
+      openAiApiKey: "test-api-key"
     }
   };
   await disabledAiManualPlugin.onload();
@@ -754,7 +793,7 @@ try {
     settings: {
       showOnStartup: false,
       aiEnabled: true,
-      apiKey: "test-api-key"
+      openAiApiKey: "test-api-key"
     },
     displayHistory: {
       shown: {
@@ -788,6 +827,10 @@ try {
   }
 
   const [_url, requestInit] = aiPrivacyRequests[0];
+  if (_url !== "https://api.openai.com/v1/chat/completions") {
+    throw new Error("OpenAI provider must send reflection requests to the OpenAI chat completions endpoint");
+  }
+
   const body = String(requestInit?.body ?? "");
 
   if (!body.includes(expectedAiExcerpt)) {
@@ -808,6 +851,75 @@ try {
     if (body.includes(forbiddenText)) {
       throw new Error(`AI request payload must not include private context: ${forbiddenText}`);
     }
+  }
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
+const claudeRequests = [];
+globalThis.fetch = async (...args) => {
+  claudeRequests.push(args);
+
+  return {
+    ok: true,
+    status: 200,
+    async json() {
+      return {
+        content: [{
+          type: "text",
+          text: "Claude reflection text."
+        }]
+      };
+    }
+  };
+};
+
+try {
+  const claudePlugin = new GentleMemoriesPlugin(createMockApp());
+  claudePlugin.data = {
+    settings: {
+      showOnStartup: false,
+      aiEnabled: true,
+      aiProvider: "claude",
+      openAiApiKey: "openai-key-that-should-not-be-used",
+      claudeApiKey: "claude-test-key"
+    }
+  };
+  await claudePlugin.onload();
+  claudePlugin.commands.find((command) => command.id === "show-memory")?.callback();
+  await flushPromises();
+  await clickModalButton("Generate reflection");
+
+  if (claudeRequests.length !== 1) {
+    throw new Error("Claude provider must make one reflection request after the user clicks");
+  }
+
+  const [claudeUrl, claudeInit] = claudeRequests[0];
+  const claudeHeaders = claudeInit?.headers ?? {};
+  const claudeBody = String(claudeInit?.body ?? "");
+
+  if (claudeUrl !== "https://api.anthropic.com/v1/messages") {
+    throw new Error("Claude provider must send reflection requests to the Anthropic messages endpoint");
+  }
+
+  if (claudeHeaders["x-api-key"] !== "claude-test-key") {
+    throw new Error("Claude provider must use the configured Claude API key");
+  }
+
+  if (String(claudeHeaders.Authorization ?? "").includes("openai-key-that-should-not-be-used")) {
+    throw new Error("Claude provider must not use the OpenAI API key");
+  }
+
+  if (!claudeBody.includes("A compact memory excerpt with enough detail to display.")) {
+    throw new Error("Claude request payload must include the current excerpt");
+  }
+
+  if (!renderedModals[0]?.texts.includes("Claude reflection text.")) {
+    throw new Error("Claude provider must display the returned reflection text");
   }
 } finally {
   globalThis.fetch = originalFetch;
@@ -848,7 +960,7 @@ try {
     settings: {
       showOnStartup: false,
       aiEnabled: true,
-      apiKey: "test-api-key",
+      openAiApiKey: "test-api-key",
       cacheAiResponses: true
     }
   };

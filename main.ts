@@ -5,7 +5,9 @@ interface PluginSettings {
   showOnStartup: boolean;
   minDaysBetweenStartupShows: number;
   aiEnabled: boolean;
-  apiKey?: string;
+  aiProvider: AiProvider;
+  openAiApiKey?: string;
+  claudeApiKey?: string;
   cacheAiResponses: boolean;
 }
 
@@ -47,12 +49,23 @@ interface AiReflectionResponse {
   }>;
 }
 
+interface ClaudeReflectionResponse {
+  content?: Array<{
+    type?: string;
+    text?: string;
+  }>;
+}
+
+type AiProvider = "openai" | "claude";
+
 const DEFAULT_SETTINGS: PluginSettings = {
   journalTags: ["journal", "diary", "note"],
   showOnStartup: true,
   minDaysBetweenStartupShows: 1,
   aiEnabled: false,
-  apiKey: undefined,
+  aiProvider: "openai",
+  openAiApiKey: undefined,
+  claudeApiKey: undefined,
   cacheAiResponses: true
 };
 
@@ -63,8 +76,10 @@ const DEFAULT_DISPLAY_HISTORY: DisplayHistory = {
 
 const SHOW_MEMORY_COMMAND_ID = "show-memory";
 const SHOW_MEMORY_COMMAND_NAME = "Show memory";
-const AI_REFLECTION_ENDPOINT = "https://api.openai.com/v1/chat/completions";
-const AI_REFLECTION_MODEL = "gpt-4o-mini";
+const OPENAI_REFLECTION_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+const OPENAI_REFLECTION_MODEL = "gpt-4o-mini";
+const CLAUDE_REFLECTION_ENDPOINT = "https://api.anthropic.com/v1/messages";
+const CLAUDE_REFLECTION_MODEL = "claude-3-5-haiku-latest";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function toComparableTag(tag: string): string {
@@ -98,6 +113,15 @@ export function noteHasConfiguredJournalTag(cache: CachedMetadata | null, journa
 function normalizeSettings(value: unknown): PluginSettings {
   const saved = value && typeof value === "object" ? value as Partial<PluginSettings> : {};
   const minDays = Number(saved.minDaysBetweenStartupShows);
+  const legacyApiKey = typeof (saved as { apiKey?: unknown }).apiKey === "string"
+    ? (saved as { apiKey?: string }).apiKey?.trim()
+    : undefined;
+  const openAiApiKey = typeof saved.openAiApiKey === "string" && saved.openAiApiKey.trim() !== ""
+    ? saved.openAiApiKey.trim()
+    : legacyApiKey || undefined;
+  const claudeApiKey = typeof saved.claudeApiKey === "string" && saved.claudeApiKey.trim() !== ""
+    ? saved.claudeApiKey.trim()
+    : undefined;
 
   return {
     journalTags: normalizeJournalTags(saved.journalTags),
@@ -106,7 +130,9 @@ function normalizeSettings(value: unknown): PluginSettings {
       ? Math.floor(minDays)
       : DEFAULT_SETTINGS.minDaysBetweenStartupShows,
     aiEnabled: typeof saved.aiEnabled === "boolean" ? saved.aiEnabled : DEFAULT_SETTINGS.aiEnabled,
-    apiKey: typeof saved.apiKey === "string" && saved.apiKey.trim() !== "" ? saved.apiKey.trim() : undefined,
+    aiProvider: saved.aiProvider === "claude" ? "claude" : DEFAULT_SETTINGS.aiProvider,
+    openAiApiKey,
+    claudeApiKey,
     cacheAiResponses: typeof saved.cacheAiResponses === "boolean"
       ? saved.cacheAiResponses
       : DEFAULT_SETTINGS.cacheAiResponses
@@ -390,8 +416,10 @@ export default class GentleMemoriesPlugin extends Plugin {
   }
 
   private async generateReflection(memory: MemoryEntry): Promise<string | null> {
-    if (!this.settings.apiKey) {
-      new Notice("Add an API key in Gentle Memories settings to generate reflections.");
+    const apiKey = this.getSelectedApiKey();
+
+    if (!apiKey) {
+      new Notice(`Add a ${this.getSelectedProviderName()} API key in Gentle Memories settings to generate reflections.`);
       return null;
     }
 
@@ -405,39 +433,13 @@ export default class GentleMemoriesPlugin extends Plugin {
     }
 
     try {
-      const response = await fetch(AI_REFLECTION_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${this.settings.apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: AI_REFLECTION_MODEL,
-          messages: [
-            {
-              role: "system",
-              content: [
-                "Write a short reflection or encouragement in 1 to 3 sentences.",
-                "Be specific to the excerpt.",
-                "Do not claim knowledge beyond the excerpt.",
-                "Do not provide medical or therapeutic advice.",
-                "Do not include diagnosis, crisis instructions, or urgent medical guidance."
-              ].join(" ")
-            },
-            {
-              role: "user",
-              content: memory.excerpt
-            }
-          ]
-        })
-      });
+      const response = await this.requestReflection(memory.excerpt, apiKey);
 
       if (!response.ok) {
         throw new Error(`AI request failed with ${response.status}`);
       }
 
-      const data = await response.json() as AiReflectionResponse;
-      const reflection = data.choices?.[0]?.message?.content?.trim();
+      const reflection = await this.readReflection(response);
 
       if (!reflection) {
         throw new Error("AI response did not include reflection text");
@@ -463,6 +465,82 @@ export default class GentleMemoriesPlugin extends Plugin {
       new Notice("Could not generate reflection. Try again later.");
       return null;
     }
+  }
+
+  private getSelectedApiKey(): string | undefined {
+    return this.settings.aiProvider === "claude"
+      ? this.settings.claudeApiKey
+      : this.settings.openAiApiKey;
+  }
+
+  private getSelectedProviderName(): string {
+    return this.settings.aiProvider === "claude" ? "Claude" : "OpenAI";
+  }
+
+  private async requestReflection(excerpt: string, apiKey: string): Promise<Response> {
+    const systemPrompt = [
+      "Write a short reflection or encouragement in 1 to 3 sentences.",
+      "Be specific to the excerpt.",
+      "Do not claim knowledge beyond the excerpt.",
+      "Do not provide medical or therapeutic advice.",
+      "Do not include diagnosis, crisis instructions, or urgent medical guidance."
+    ].join(" ");
+
+    if (this.settings.aiProvider === "claude") {
+      return fetch(CLAUDE_REFLECTION_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: CLAUDE_REFLECTION_MODEL,
+          max_tokens: 180,
+          system: systemPrompt,
+          messages: [
+            {
+              role: "user",
+              content: excerpt
+            }
+          ]
+        })
+      });
+    }
+
+    return fetch(OPENAI_REFLECTION_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: OPENAI_REFLECTION_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          {
+            role: "user",
+            content: excerpt
+          }
+        ]
+      })
+    });
+  }
+
+  private async readReflection(response: Response): Promise<string | undefined> {
+    if (this.settings.aiProvider === "claude") {
+      const data = await response.json() as ClaudeReflectionResponse;
+      return data.content
+        ?.find((content) => content.type === "text" && typeof content.text === "string")
+        ?.text
+        ?.trim();
+    }
+
+    const data = await response.json() as AiReflectionResponse;
+    return data.choices?.[0]?.message?.content?.trim();
   }
 }
 
@@ -617,13 +695,38 @@ class GentleMemoriesSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName("API key")
+      .setName("AI provider")
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption("openai", "OpenAI")
+          .addOption("claude", "Claude")
+          .setValue(this.plugin.settings.aiProvider)
+          .onChange(async (value) => {
+            this.plugin.settings.aiProvider = value === "claude" ? "claude" : "openai";
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName("OpenAI API key")
       .addText((text) => {
         text.inputEl.type = "password";
         text
-          .setValue(this.plugin.settings.apiKey ?? "")
+          .setValue(this.plugin.settings.openAiApiKey ?? "")
           .onChange(async (value) => {
-            this.plugin.settings.apiKey = value.trim() || undefined;
+            this.plugin.settings.openAiApiKey = value.trim() || undefined;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName("Claude API key")
+      .addText((text) => {
+        text.inputEl.type = "password";
+        text
+          .setValue(this.plugin.settings.claudeApiKey ?? "")
+          .onChange(async (value) => {
+            this.plugin.settings.claudeApiKey = value.trim() || undefined;
             await this.plugin.saveSettings();
           });
       });

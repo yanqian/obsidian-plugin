@@ -65,7 +65,7 @@ Do not implement the following in the first version:
 - Mental health advice.
 - Long-term personality profiling.
 - Multi-user support.
-- Custom AI provider selection.
+- Custom AI provider configuration beyond OpenAI and Claude.
 - Streaming AI responses.
 - Image generation.
 
@@ -148,7 +148,9 @@ interface PluginSettings {
   showOnStartup: boolean;
   minDaysBetweenStartupShows: number;
   aiEnabled: boolean;
-  apiKey?: string;
+  aiProvider: "openai" | "claude";
+  openAiApiKey?: string;
+  claudeApiKey?: string;
   cacheAiResponses: boolean;
 }
 ```
@@ -161,7 +163,9 @@ const DEFAULT_SETTINGS: PluginSettings = {
   showOnStartup: true,
   minDaysBetweenStartupShows: 1,
   aiEnabled: false,
-  apiKey: undefined,
+  aiProvider: "openai",
+  openAiApiKey: undefined,
+  claudeApiKey: undefined,
   cacheAiResponses: true,
 };
 ```
@@ -172,7 +176,9 @@ Settings UI requirements:
 - Show a toggle for startup display.
 - Show a numeric input for minimum days between startup displays.
 - Show a toggle for AI.
-- Show a password-style input for API key.
+- Show an AI provider selector for OpenAI or Claude.
+- Show a password-style input for OpenAI API key.
+- Show a password-style input for Claude API key.
 - Show a toggle for AI response caching.
 - Persist settings through Obsidian plugin data APIs.
 
@@ -235,7 +241,7 @@ Trigger: User clicks `Generate reflection`.
 Required behavior:
 
 1. If `aiEnabled` is `false`, do not show the button.
-2. If `aiEnabled` is `true` and `apiKey` is missing, show a notice: `Add an API key in Gentle Memories settings to generate reflections.`
+2. If `aiEnabled` is `true` and the selected provider API key is missing, show a missing-key notice.
 3. If `cacheAiResponses` is `true` and an AI cache entry exists for `${path}:${contentHash}`, show the cached reflection.
 4. If no cache entry exists, send only the current `excerpt` to the AI provider.
 5. Show the returned reflection in the modal.
@@ -347,7 +353,7 @@ Handle these cases:
 - No configured tags: show settings validation error and use defaults until valid tags are saved.
 - No matching notes: manual command shows a notice; startup does nothing.
 - Matching notes but no usable excerpt: manual command shows a notice; startup does nothing.
-- Missing API key: show the exact notice defined in section 5.4.
+- Missing selected provider API key: show the missing-key notice defined in section 5.4.
 - AI request failure: show the exact notice defined in section 5.4.
 - Corrupt saved plugin data: fall back to defaults without crashing.
 
@@ -386,8 +392,45 @@ Verify these scenarios manually or with automated tests:
 5. Click `Next`; confirm the current note is not repeated when another eligible note exists.
 6. Reload the plugin; confirm display history persists.
 7. Disable startup display; reload the plugin; confirm no startup modal appears.
-8. Enable AI without an API key; click `Generate reflection`; confirm the missing-key notice appears.
+8. Enable AI without the selected provider API key; click `Generate reflection`; confirm the missing-key notice appears.
 9. Keep AI disabled; confirm no AI button appears.
-10. Inspect the AI request implementation; confirm only the excerpt is sent.
+10. Inspect the AI request implementation; confirm only the excerpt is sent to the selected provider.
 
 Follow repository execution rules in `AGENTS.md`. If a harness exists, update and run it as required by that file.
+
+## 15. Follow-up Requirements
+
+### 15.1 AI Provider Settings Visibility
+
+The settings UI must make the selected AI provider and API key fields feel linked:
+
+- Keep the existing `aiProvider` setting with OpenAI and Claude options.
+- When `aiProvider` is `openai`, show only the OpenAI API key input.
+- When `aiProvider` is `claude`, show only the Claude API key input.
+- Switching providers must refresh the settings UI immediately.
+- Hidden provider API keys must remain saved and must not be cleared automatically.
+- AI reflection generation must continue to validate only the selected provider's API key.
+
+### 15.2 Debug Mode
+
+Add a debug setting for manual verification and troubleshooting:
+
+- Add `debugMode: boolean` to plugin settings.
+- Default `debugMode` must be `false`.
+- When debug mode is enabled, expose a settings-tab control to show a memory immediately.
+- The debug show-memory control must bypass startup-only controls such as `showOnStartup` and `minDaysBetweenStartupShows`.
+- Debug mode should log useful diagnostics to the developer console, including candidate note counts, filter outcomes, selected memory path, and AI cache hits or misses.
+- Debug logging must not include full note content, vault names, API keys, or AI request secrets.
+
+### 15.3 Rich Memory Rendering
+
+The memory display should support richer note content:
+
+- Render the source note body with Obsidian Markdown rendering APIs so common Markdown, wikilinks, embeds, and images display as closely as practical to Obsidian reading view.
+- If AI is enabled, show a reflection section before the note content once the user generates or loads a reflection.
+- Continue to avoid automatic AI requests on startup or modal open.
+- Show a compact note preview by default for long notes.
+- Provide a `Show more` control that expands long notes to the full rendered content.
+- Provide a `Show less` control after expansion.
+- Preserve existing `Open note`, `Next`, `Close`, and AI reflection controls.
+- Keep the current modal approach for the first rich-rendering implementation; a dedicated Obsidian view may be considered later if the modal becomes insufficient.

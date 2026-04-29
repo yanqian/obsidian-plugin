@@ -31,7 +31,9 @@ var DEFAULT_SETTINGS = {
   showOnStartup: true,
   minDaysBetweenStartupShows: 1,
   aiEnabled: false,
-  apiKey: void 0,
+  aiProvider: "openai",
+  openAiApiKey: void 0,
+  claudeApiKey: void 0,
   cacheAiResponses: true
 };
 var DEFAULT_DISPLAY_HISTORY = {
@@ -40,8 +42,10 @@ var DEFAULT_DISPLAY_HISTORY = {
 };
 var SHOW_MEMORY_COMMAND_ID = "show-memory";
 var SHOW_MEMORY_COMMAND_NAME = "Show memory";
-var AI_REFLECTION_ENDPOINT = "https://api.openai.com/v1/chat/completions";
-var AI_REFLECTION_MODEL = "gpt-4o-mini";
+var OPENAI_REFLECTION_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+var OPENAI_REFLECTION_MODEL = "gpt-4o-mini";
+var CLAUDE_REFLECTION_ENDPOINT = "https://api.anthropic.com/v1/messages";
+var CLAUDE_REFLECTION_MODEL = "claude-3-5-haiku-latest";
 var MS_PER_DAY = 24 * 60 * 60 * 1e3;
 function toComparableTag(tag) {
   return tag.trim().replace(/^#/, "").toLowerCase();
@@ -63,14 +67,20 @@ function noteHasConfiguredJournalTag(cache, journalTags) {
   return noteTags.some((tag) => configuredTags.has(tag));
 }
 function normalizeSettings(value) {
+  var _a;
   const saved = value && typeof value === "object" ? value : {};
   const minDays = Number(saved.minDaysBetweenStartupShows);
+  const legacyApiKey = typeof saved.apiKey === "string" ? (_a = saved.apiKey) == null ? void 0 : _a.trim() : void 0;
+  const openAiApiKey = typeof saved.openAiApiKey === "string" && saved.openAiApiKey.trim() !== "" ? saved.openAiApiKey.trim() : legacyApiKey || void 0;
+  const claudeApiKey = typeof saved.claudeApiKey === "string" && saved.claudeApiKey.trim() !== "" ? saved.claudeApiKey.trim() : void 0;
   return {
     journalTags: normalizeJournalTags(saved.journalTags),
     showOnStartup: typeof saved.showOnStartup === "boolean" ? saved.showOnStartup : DEFAULT_SETTINGS.showOnStartup,
     minDaysBetweenStartupShows: Number.isFinite(minDays) && minDays >= 0 ? Math.floor(minDays) : DEFAULT_SETTINGS.minDaysBetweenStartupShows,
     aiEnabled: typeof saved.aiEnabled === "boolean" ? saved.aiEnabled : DEFAULT_SETTINGS.aiEnabled,
-    apiKey: typeof saved.apiKey === "string" && saved.apiKey.trim() !== "" ? saved.apiKey.trim() : void 0,
+    aiProvider: saved.aiProvider === "claude" ? "claude" : DEFAULT_SETTINGS.aiProvider,
+    openAiApiKey,
+    claudeApiKey,
     cacheAiResponses: typeof saved.cacheAiResponses === "boolean" ? saved.cacheAiResponses : DEFAULT_SETTINGS.cacheAiResponses
   };
 }
@@ -286,9 +296,9 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     return `${memory.path}:${memory.contentHash}`;
   }
   async generateReflection(memory) {
-    var _a, _b, _c, _d;
-    if (!this.settings.apiKey) {
-      new import_obsidian.Notice("Add an API key in Gentle Memories settings to generate reflections.");
+    const apiKey = this.getSelectedApiKey();
+    if (!apiKey) {
+      new import_obsidian.Notice(`Add a ${this.getSelectedProviderName()} API key in Gentle Memories settings to generate reflections.`);
       return null;
     }
     const cacheKey = this.getAiCacheKey(memory);
@@ -297,37 +307,11 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       return cachedReflection.text;
     }
     try {
-      const response = await fetch(AI_REFLECTION_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${this.settings.apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: AI_REFLECTION_MODEL,
-          messages: [
-            {
-              role: "system",
-              content: [
-                "Write a short reflection or encouragement in 1 to 3 sentences.",
-                "Be specific to the excerpt.",
-                "Do not claim knowledge beyond the excerpt.",
-                "Do not provide medical or therapeutic advice.",
-                "Do not include diagnosis, crisis instructions, or urgent medical guidance."
-              ].join(" ")
-            },
-            {
-              role: "user",
-              content: memory.excerpt
-            }
-          ]
-        })
-      });
+      const response = await this.requestReflection(memory.excerpt, apiKey);
       if (!response.ok) {
         throw new Error(`AI request failed with ${response.status}`);
       }
-      const data = await response.json();
-      const reflection = (_d = (_c = (_b = (_a = data.choices) == null ? void 0 : _a[0]) == null ? void 0 : _b.message) == null ? void 0 : _c.content) == null ? void 0 : _d.trim();
+      const reflection = await this.readReflection(response);
       if (!reflection) {
         throw new Error("AI response did not include reflection text");
       }
@@ -350,6 +334,71 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       new import_obsidian.Notice("Could not generate reflection. Try again later.");
       return null;
     }
+  }
+  getSelectedApiKey() {
+    return this.settings.aiProvider === "claude" ? this.settings.claudeApiKey : this.settings.openAiApiKey;
+  }
+  getSelectedProviderName() {
+    return this.settings.aiProvider === "claude" ? "Claude" : "OpenAI";
+  }
+  async requestReflection(excerpt, apiKey) {
+    const systemPrompt = [
+      "Write a short reflection or encouragement in 1 to 3 sentences.",
+      "Be specific to the excerpt.",
+      "Do not claim knowledge beyond the excerpt.",
+      "Do not provide medical or therapeutic advice.",
+      "Do not include diagnosis, crisis instructions, or urgent medical guidance."
+    ].join(" ");
+    if (this.settings.aiProvider === "claude") {
+      return fetch(CLAUDE_REFLECTION_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: CLAUDE_REFLECTION_MODEL,
+          max_tokens: 180,
+          system: systemPrompt,
+          messages: [
+            {
+              role: "user",
+              content: excerpt
+            }
+          ]
+        })
+      });
+    }
+    return fetch(OPENAI_REFLECTION_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: OPENAI_REFLECTION_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          {
+            role: "user",
+            content: excerpt
+          }
+        ]
+      })
+    });
+  }
+  async readReflection(response) {
+    var _a, _b, _c, _d, _e, _f, _g;
+    if (this.settings.aiProvider === "claude") {
+      const data2 = await response.json();
+      return (_c = (_b = (_a = data2.content) == null ? void 0 : _a.find((content) => content.type === "text" && typeof content.text === "string")) == null ? void 0 : _b.text) == null ? void 0 : _c.trim();
+    }
+    const data = await response.json();
+    return (_g = (_f = (_e = (_d = data.choices) == null ? void 0 : _d[0]) == null ? void 0 : _e.message) == null ? void 0 : _f.content) == null ? void 0 : _g.trim();
   }
 };
 var MemoryModal = class extends import_obsidian.Modal {
@@ -451,11 +500,25 @@ var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian.Setting(containerEl).setName("API key").addText((text) => {
+    new import_obsidian.Setting(containerEl).setName("AI provider").addDropdown((dropdown) => {
+      dropdown.addOption("openai", "OpenAI").addOption("claude", "Claude").setValue(this.plugin.settings.aiProvider).onChange(async (value) => {
+        this.plugin.settings.aiProvider = value === "claude" ? "claude" : "openai";
+        await this.plugin.saveSettings();
+      });
+    });
+    new import_obsidian.Setting(containerEl).setName("OpenAI API key").addText((text) => {
       var _a;
       text.inputEl.type = "password";
-      text.setValue((_a = this.plugin.settings.apiKey) != null ? _a : "").onChange(async (value) => {
-        this.plugin.settings.apiKey = value.trim() || void 0;
+      text.setValue((_a = this.plugin.settings.openAiApiKey) != null ? _a : "").onChange(async (value) => {
+        this.plugin.settings.openAiApiKey = value.trim() || void 0;
+        await this.plugin.saveSettings();
+      });
+    });
+    new import_obsidian.Setting(containerEl).setName("Claude API key").addText((text) => {
+      var _a;
+      text.inputEl.type = "password";
+      text.setValue((_a = this.plugin.settings.claudeApiKey) != null ? _a : "").onChange(async (value) => {
+        this.plugin.settings.claudeApiKey = value.trim() || void 0;
         await this.plugin.saveSettings();
       });
     });

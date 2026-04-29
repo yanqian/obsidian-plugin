@@ -31,6 +31,32 @@ Responsibilities:
 * Initialize git
 * Do not implement business logic
 
+## Planning Agent
+
+The Planning Agent handles new requirements before implementation begins.
+
+Responsibilities:
+
+* Read `SPEC.md`
+* Read `feature_list.json`
+* Update `SPEC.md` by appending the new requirement clearly
+* Append new features to `feature_list.json`
+* Keep all existing requirements and feature entries unchanged unless explicitly instructed
+
+Strict rules:
+
+* Do not modify existing feature IDs
+* Do not reset existing fields such as `passes`, `status`, `attempts`, or `last_error`
+* Do not reorder existing features
+* Only append new feature entries
+* Preserve all existing data and state
+
+After updating:
+
+* Ensure `SPEC.md` remains structurally valid
+* Ensure `feature_list.json` is valid JSON
+* Ensure there are no duplicate feature IDs
+
 ## Orchestrator
 
 `orchestrator.py` owns unattended feature execution.
