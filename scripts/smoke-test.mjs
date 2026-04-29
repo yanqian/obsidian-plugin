@@ -118,12 +118,14 @@ class MockElement {
     this.texts = [];
     this.buttons = [];
     this.buttonHandlers = new Map();
+    this.settings = [];
   }
 
   empty() {
     this.texts.length = 0;
     this.buttons.length = 0;
     this.buttonHandlers.clear();
+    this.settings.length = 0;
   }
 
   createEl(_tagName, options = {}) {
@@ -185,6 +187,7 @@ class MockPluginSettingTab {
   constructor(app, plugin) {
     this.app = app;
     this.plugin = plugin;
+    this.containerEl = new MockElement();
   }
 }
 
@@ -228,9 +231,73 @@ class MockDropdown {
   }
 }
 
+class MockText {
+  constructor() {
+    this.inputEl = {};
+    this.value = "";
+  }
+
+  setPlaceholder(value) {
+    this.placeholder = value;
+    return this;
+  }
+
+  setValue(value) {
+    this.value = value;
+    return this;
+  }
+
+  onChange(callback) {
+    this.callback = callback;
+    return this;
+  }
+}
+
+class MockToggle {
+  constructor() {
+    this.value = false;
+  }
+
+  setValue(value) {
+    this.value = value;
+    return this;
+  }
+
+  onChange(callback) {
+    this.callback = callback;
+    return this;
+  }
+}
+
 class MockSetting {
   constructor(containerEl) {
     this.containerEl = containerEl;
+    this.record = { name: "" };
+    this.containerEl.settings.push(this.record);
+  }
+
+  setName(name) {
+    this.record.name = name;
+    return this;
+  }
+
+  setDesc(description) {
+    this.record.description = description;
+    return this;
+  }
+
+  addText(callback) {
+    const text = new MockText();
+    this.record.text = text;
+    callback(text);
+    return this;
+  }
+
+  addToggle(callback) {
+    const toggle = new MockToggle();
+    this.record.toggle = toggle;
+    callback(toggle);
+    return this;
   }
 
   addButton(callback) {
@@ -239,7 +306,9 @@ class MockSetting {
   }
 
   addDropdown(callback) {
-    callback(new MockDropdown());
+    const dropdown = new MockDropdown();
+    this.record.dropdown = dropdown;
+    callback(dropdown);
     return this;
   }
 }
@@ -659,6 +728,50 @@ await legacyApiKeyPlugin.onload();
 
 if (legacyApiKeyPlugin.settings.openAiApiKey !== "legacy-openai-key") {
   throw new Error("Legacy apiKey setting must migrate to the OpenAI API key setting");
+}
+
+const providerSettingsPlugin = new GentleMemoriesPlugin(createMockApp());
+providerSettingsPlugin.data = {
+  settings: {
+    showOnStartup: false,
+    aiProvider: "openai",
+    openAiApiKey: "saved-openai-key",
+    claudeApiKey: "saved-claude-key"
+  }
+};
+await providerSettingsPlugin.onload();
+const providerSettingsTab = providerSettingsPlugin.settingTabs[0];
+providerSettingsTab.display();
+
+const settingNames = () => providerSettingsTab.containerEl.settings.map((setting) => setting.name);
+const providerDropdown = () => providerSettingsTab.containerEl.settings
+  .find((setting) => setting.name === "AI provider")?.dropdown;
+
+if (!settingNames().includes("OpenAI API key")) {
+  throw new Error("OpenAI provider settings must show the OpenAI API key input");
+}
+
+if (settingNames().includes("Claude API key")) {
+  throw new Error("OpenAI provider settings must hide the Claude API key input");
+}
+
+await providerDropdown()?.callback("claude");
+await flushPromises();
+
+if (!settingNames().includes("Claude API key")) {
+  throw new Error("Claude provider settings must show the Claude API key input after switching providers");
+}
+
+if (settingNames().includes("OpenAI API key")) {
+  throw new Error("Claude provider settings must hide the OpenAI API key input after switching providers");
+}
+
+if (providerSettingsPlugin.settings.openAiApiKey !== "saved-openai-key") {
+  throw new Error("Switching providers must preserve the hidden OpenAI API key");
+}
+
+if (providerSettingsPlugin.settings.claudeApiKey !== "saved-claude-key") {
+  throw new Error("Switching providers must preserve the saved Claude API key");
 }
 
 layoutCallbacks = [];

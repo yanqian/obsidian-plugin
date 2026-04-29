@@ -504,24 +504,28 @@ var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
       dropdown.addOption("openai", "OpenAI").addOption("claude", "Claude").setValue(this.plugin.settings.aiProvider).onChange(async (value) => {
         this.plugin.settings.aiProvider = value === "claude" ? "claude" : "openai";
         await this.plugin.saveSettings();
+        this.display();
       });
     });
-    new import_obsidian.Setting(containerEl).setName("OpenAI API key").addText((text) => {
-      var _a;
-      text.inputEl.type = "password";
-      text.setValue((_a = this.plugin.settings.openAiApiKey) != null ? _a : "").onChange(async (value) => {
-        this.plugin.settings.openAiApiKey = value.trim() || void 0;
-        await this.plugin.saveSettings();
+    if (this.plugin.settings.aiProvider === "claude") {
+      new import_obsidian.Setting(containerEl).setName("Claude API key").addText((text) => {
+        var _a;
+        text.inputEl.type = "password";
+        text.setValue((_a = this.plugin.settings.claudeApiKey) != null ? _a : "").onChange(async (value) => {
+          this.plugin.settings.claudeApiKey = value.trim() || void 0;
+          await this.plugin.saveSettings();
+        });
       });
-    });
-    new import_obsidian.Setting(containerEl).setName("Claude API key").addText((text) => {
-      var _a;
-      text.inputEl.type = "password";
-      text.setValue((_a = this.plugin.settings.claudeApiKey) != null ? _a : "").onChange(async (value) => {
-        this.plugin.settings.claudeApiKey = value.trim() || void 0;
-        await this.plugin.saveSettings();
+    } else {
+      new import_obsidian.Setting(containerEl).setName("OpenAI API key").addText((text) => {
+        var _a;
+        text.inputEl.type = "password";
+        text.setValue((_a = this.plugin.settings.openAiApiKey) != null ? _a : "").onChange(async (value) => {
+          this.plugin.settings.openAiApiKey = value.trim() || void 0;
+          await this.plugin.saveSettings();
+        });
       });
-    });
+    }
     new import_obsidian.Setting(containerEl).setName("Cache AI responses").addToggle((toggle) => {
       toggle.setValue(this.plugin.settings.cacheAiResponses).onChange(async (value) => {
         this.plugin.settings.cacheAiResponses = value;

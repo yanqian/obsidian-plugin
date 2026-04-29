@@ -165,9 +165,9 @@
     {
       "id": "F021",
       "description": "Settings UI shows only the API key input for the selected AI provider while preserving hidden provider keys.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {

@@ -704,32 +704,35 @@ class GentleMemoriesSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.aiProvider = value === "claude" ? "claude" : "openai";
             await this.plugin.saveSettings();
+            this.display();
           });
       });
 
-    new Setting(containerEl)
-      .setName("OpenAI API key")
-      .addText((text) => {
-        text.inputEl.type = "password";
-        text
-          .setValue(this.plugin.settings.openAiApiKey ?? "")
-          .onChange(async (value) => {
-            this.plugin.settings.openAiApiKey = value.trim() || undefined;
-            await this.plugin.saveSettings();
-          });
-      });
-
-    new Setting(containerEl)
-      .setName("Claude API key")
-      .addText((text) => {
-        text.inputEl.type = "password";
-        text
-          .setValue(this.plugin.settings.claudeApiKey ?? "")
-          .onChange(async (value) => {
-            this.plugin.settings.claudeApiKey = value.trim() || undefined;
-            await this.plugin.saveSettings();
-          });
-      });
+    if (this.plugin.settings.aiProvider === "claude") {
+      new Setting(containerEl)
+        .setName("Claude API key")
+        .addText((text) => {
+          text.inputEl.type = "password";
+          text
+            .setValue(this.plugin.settings.claudeApiKey ?? "")
+            .onChange(async (value) => {
+              this.plugin.settings.claudeApiKey = value.trim() || undefined;
+              await this.plugin.saveSettings();
+            });
+        });
+    } else {
+      new Setting(containerEl)
+        .setName("OpenAI API key")
+        .addText((text) => {
+          text.inputEl.type = "password";
+          text
+            .setValue(this.plugin.settings.openAiApiKey ?? "")
+            .onChange(async (value) => {
+              this.plugin.settings.openAiApiKey = value.trim() || undefined;
+              await this.plugin.saveSettings();
+            });
+        });
+    }
 
     new Setting(containerEl)
       .setName("Cache AI responses")
