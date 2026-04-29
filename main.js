@@ -177,7 +177,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
         this.settings.aiEnabled,
         (currentPath) => this.selectMemory(currentPath),
         (shownMemory) => this.recordMemoryShown(shownMemory, Date.now()),
-        (excerpt) => this.generateReflection(excerpt)
+        (reflectionMemory) => this.generateReflection(reflectionMemory)
       ).open();
       await this.recordMemoryShown(memory, Date.now());
       return true;
@@ -278,11 +278,19 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       contentHash: createContentHash(excerpt)
     };
   }
-  async generateReflection(excerpt) {
+  getAiCacheKey(memory) {
+    return `${memory.path}:${memory.contentHash}`;
+  }
+  async generateReflection(memory) {
     var _a, _b, _c, _d;
     if (!this.settings.apiKey) {
       new import_obsidian.Notice("Add an API key in Gentle Memories settings to generate reflections.");
       return null;
+    }
+    const cacheKey = this.getAiCacheKey(memory);
+    const cachedReflection = this.settings.cacheAiResponses ? this.displayHistory.aiCache[cacheKey] : void 0;
+    if (cachedReflection) {
+      return cachedReflection.text;
     }
     try {
       const response = await fetch(AI_REFLECTION_ENDPOINT, {
@@ -306,7 +314,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
             },
             {
               role: "user",
-              content: excerpt
+              content: memory.excerpt
             }
           ]
         })
@@ -318,6 +326,19 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       const reflection = (_d = (_c = (_b = (_a = data.choices) == null ? void 0 : _a[0]) == null ? void 0 : _b.message) == null ? void 0 : _c.content) == null ? void 0 : _d.trim();
       if (!reflection) {
         throw new Error("AI response did not include reflection text");
+      }
+      if (this.settings.cacheAiResponses) {
+        this.displayHistory = {
+          ...this.displayHistory,
+          aiCache: {
+            ...this.displayHistory.aiCache,
+            [cacheKey]: {
+              text: reflection,
+              generatedAt: new Date(Date.now()).toISOString()
+            }
+          }
+        };
+        await this.savePluginData();
       }
       return reflection;
     } catch (error) {
@@ -382,7 +403,7 @@ var MemoryModal = class extends import_obsidian.Modal {
     }
   }
   async showReflection() {
-    const reflection = await this.generateReflection(this.memory.excerpt);
+    const reflection = await this.generateReflection(this.memory);
     if (reflection) {
       this.reflectionText = reflection;
       this.onOpen();

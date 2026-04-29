@@ -733,6 +733,100 @@ layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
 openedFiles.length = 0;
+const aiCacheRequests = [];
+const aiCachePath = "Cache/2024-06-01 Journal.md";
+globalThis.fetch = async (...args) => {
+  aiCacheRequests.push(args);
+
+  return {
+    ok: true,
+    status: 200,
+    async json() {
+      return {
+        choices: [{
+          message: {
+            content: "Cached reflection text."
+          }
+        }]
+      };
+    }
+  };
+};
+
+try {
+  const aiCachePlugin = new GentleMemoriesPlugin(createMockApp([{
+    path: aiCachePath,
+    basename: "2024-06-01 Journal",
+    date: "2024-06-01",
+    excerpt: "A cacheable memory excerpt with enough detail to display."
+  }]));
+  aiCachePlugin.data = {
+    settings: {
+      showOnStartup: false,
+      aiEnabled: true,
+      apiKey: "test-api-key",
+      cacheAiResponses: true
+    }
+  };
+  await aiCachePlugin.onload();
+  aiCachePlugin.commands.find((command) => command.id === "show-memory")?.callback();
+  await flushPromises();
+  assertMemoryModal("AI cache test must show a memory before generating a reflection", {
+    expectAiButton: true,
+    expectedTitle: "2024-06-01 Journal",
+    expectedDate: "2024-06-01",
+    expectedExcerpt: "A cacheable memory excerpt with enough detail to display."
+  });
+
+  await clickModalButton("Generate reflection");
+
+  if (aiCacheRequests.length !== 1) {
+    throw new Error("AI cache miss must make one network request");
+  }
+
+  const aiCacheContentHash = aiCachePlugin.data?.displayHistory?.shown?.[aiCachePath]?.contentHash;
+  const expectedAiCacheKey = `${aiCachePath}:${aiCacheContentHash}`;
+
+  if (typeof aiCacheContentHash !== "string" || aiCacheContentHash.length === 0) {
+    throw new Error("AI cache test must have a shown memory content hash");
+  }
+
+  if (aiCachePlugin.data?.displayHistory?.aiCache?.[expectedAiCacheKey]?.text !== "Cached reflection text.") {
+    throw new Error("AI cache must persist reflections under ${path}:${contentHash}");
+  }
+
+  layoutCallbacks = [];
+  notices.length = 0;
+  renderedModals.length = 0;
+  openedFiles.length = 0;
+  aiCacheRequests.length = 0;
+  const aiCacheHitPlugin = new GentleMemoriesPlugin(createMockApp([{
+    path: aiCachePath,
+    basename: "2024-06-01 Journal",
+    date: "2024-06-01",
+    excerpt: "A cacheable memory excerpt with enough detail to display."
+  }]));
+  aiCacheHitPlugin.data = aiCachePlugin.data;
+  await aiCacheHitPlugin.onload();
+  aiCacheHitPlugin.commands.find((command) => command.id === "show-memory")?.callback();
+  await flushPromises();
+  await clickModalButton("Generate reflection");
+
+  if (aiCacheRequests.length !== 0) {
+    throw new Error("AI cache hit for ${path}:${contentHash} must not make a network request");
+  }
+
+  if (!renderedModals[0]?.texts.includes("Cached reflection text.")) {
+    throw new Error("AI cache hit must show the cached reflection");
+  }
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
 const enabledStartupPlugin = new GentleMemoriesPlugin(createMockApp());
 enabledStartupPlugin.data = { settings: { showOnStartup: true } };
 await enabledStartupPlugin.onload();

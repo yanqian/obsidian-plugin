@@ -254,7 +254,7 @@ export default class GentleMemoriesPlugin extends Plugin {
         this.settings.aiEnabled,
         (currentPath) => this.selectMemory(currentPath),
         (shownMemory) => this.recordMemoryShown(shownMemory, Date.now()),
-        (excerpt) => this.generateReflection(excerpt)
+        (reflectionMemory) => this.generateReflection(reflectionMemory)
       ).open();
       await this.recordMemoryShown(memory, Date.now());
       return true;
@@ -381,10 +381,23 @@ export default class GentleMemoriesPlugin extends Plugin {
     };
   }
 
-  private async generateReflection(excerpt: string): Promise<string | null> {
+  private getAiCacheKey(memory: MemoryEntry): string {
+    return `${memory.path}:${memory.contentHash}`;
+  }
+
+  private async generateReflection(memory: MemoryEntry): Promise<string | null> {
     if (!this.settings.apiKey) {
       new Notice("Add an API key in Gentle Memories settings to generate reflections.");
       return null;
+    }
+
+    const cacheKey = this.getAiCacheKey(memory);
+    const cachedReflection = this.settings.cacheAiResponses
+      ? this.displayHistory.aiCache[cacheKey]
+      : undefined;
+
+    if (cachedReflection) {
+      return cachedReflection.text;
     }
 
     try {
@@ -409,7 +422,7 @@ export default class GentleMemoriesPlugin extends Plugin {
             },
             {
               role: "user",
-              content: excerpt
+              content: memory.excerpt
             }
           ]
         })
@@ -424,6 +437,20 @@ export default class GentleMemoriesPlugin extends Plugin {
 
       if (!reflection) {
         throw new Error("AI response did not include reflection text");
+      }
+
+      if (this.settings.cacheAiResponses) {
+        this.displayHistory = {
+          ...this.displayHistory,
+          aiCache: {
+            ...this.displayHistory.aiCache,
+            [cacheKey]: {
+              text: reflection,
+              generatedAt: new Date(Date.now()).toISOString()
+            }
+          }
+        };
+        await this.savePluginData();
       }
 
       return reflection;
@@ -442,7 +469,7 @@ class MemoryModal extends Modal {
     private readonly aiEnabled: boolean,
     private readonly selectNextMemory: (currentPath: string) => Promise<MemoryEntry | null>,
     private readonly recordMemoryShown: (memory: MemoryEntry) => Promise<void>,
-    private readonly generateReflection: (excerpt: string) => Promise<string | null>
+    private readonly generateReflection: (memory: MemoryEntry) => Promise<string | null>
   ) {
     super(app);
   }
@@ -513,7 +540,7 @@ class MemoryModal extends Modal {
   }
 
   private async showReflection(): Promise<void> {
-    const reflection = await this.generateReflection(this.memory.excerpt);
+    const reflection = await this.generateReflection(this.memory);
 
     if (reflection) {
       this.reflectionText = reflection;

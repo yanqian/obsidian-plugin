@@ -141,9 +141,9 @@
     {
       "id": "F018",
       "description": "AI cache is keyed by ${path}:${contentHash}.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {
