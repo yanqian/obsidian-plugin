@@ -133,9 +133,9 @@
     {
       "id": "F017",
       "description": "AI request payload excludes full note content, file paths, vault names, and display history.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {

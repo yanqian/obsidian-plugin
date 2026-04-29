@@ -228,6 +228,9 @@ function createMockApp(entries = [{
 
   return {
     vault: {
+      getName() {
+        return "Personal Vault";
+      },
       getMarkdownFiles() {
         return markdownFiles;
       },
@@ -245,7 +248,8 @@ function createMockApp(entries = [{
           "---",
           "# A heading to skip",
           "#journal",
-          entry.excerpt
+          entry.excerpt,
+          entry.extraContent ?? ""
         ].join("\n");
       }
     },
@@ -622,6 +626,104 @@ try {
 
   if (disabledAiNetworkRequests.length !== 0) {
     throw new Error("No network request may occur while AI is disabled");
+  }
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
+const aiPrivacyRequests = [];
+const aiPrivacyVisibleText = "Allowed excerpt sentence with enough context. ".repeat(8);
+const expectedAiExcerpt = aiPrivacyVisibleText.replace(/\s+/g, " ").trim().slice(0, 200).trim();
+const aiPrivacyPath = "Private Vault/2024-05-10 Secret Journal.md";
+const fullNoteSecret = "PRIVATE_FULL_NOTE_DETAIL_must_not_be_uploaded";
+globalThis.fetch = async (...args) => {
+  aiPrivacyRequests.push(args);
+
+  return {
+    ok: true,
+    status: 200,
+    async json() {
+      return {
+        choices: [{
+          message: {
+            content: "A short reflection grounded in the excerpt."
+          }
+        }]
+      };
+    }
+  };
+};
+
+try {
+  const aiPrivacyPlugin = new GentleMemoriesPlugin(createMockApp([{
+    path: aiPrivacyPath,
+    basename: "2024-05-10 Secret Journal",
+    date: "2024-05-10",
+    excerpt: aiPrivacyVisibleText,
+    extraContent: fullNoteSecret
+  }]));
+  aiPrivacyPlugin.data = {
+    settings: {
+      showOnStartup: false,
+      aiEnabled: true,
+      apiKey: "test-api-key"
+    },
+    displayHistory: {
+      shown: {
+        [aiPrivacyPath]: {
+          shownAt: "2026-04-20T00:00:00.000Z",
+          contentHash: "history-secret-hash"
+        }
+      },
+      aiCache: {
+        "Private Vault/2024-05-10 Secret Journal.md:history-secret-hash": {
+          text: "cached history must not be uploaded",
+          generatedAt: "2026-04-20T00:00:00.000Z"
+        }
+      }
+    }
+  };
+  await aiPrivacyPlugin.onload();
+  aiPrivacyPlugin.commands.find((command) => command.id === "show-memory")?.callback();
+  await flushPromises();
+  assertMemoryModal("AI privacy test must show a memory before generating a reflection", {
+    expectAiButton: true,
+    expectedTitle: "2024-05-10 Secret Journal",
+    expectedDate: "2024-05-10",
+    expectedExcerpt: expectedAiExcerpt
+  });
+
+  await clickModalButton("Generate reflection");
+
+  if (aiPrivacyRequests.length !== 1) {
+    throw new Error("Generate reflection must make exactly one request after the user clicks");
+  }
+
+  const [_url, requestInit] = aiPrivacyRequests[0];
+  const body = String(requestInit?.body ?? "");
+
+  if (!body.includes(expectedAiExcerpt)) {
+    throw new Error("AI request payload must include the current excerpt");
+  }
+
+  for (const forbiddenText of [
+    aiPrivacyPath,
+    "Private Vault",
+    "Personal Vault",
+    "2024-05-10 Secret Journal",
+    fullNoteSecret,
+    "displayHistory",
+    "shownAt",
+    "history-secret-hash",
+    "cached history must not be uploaded"
+  ]) {
+    if (body.includes(forbiddenText)) {
+      throw new Error(`AI request payload must not include private context: ${forbiddenText}`);
+    }
   }
 } finally {
   globalThis.fetch = originalFetch;

@@ -40,6 +40,8 @@ var DEFAULT_DISPLAY_HISTORY = {
 };
 var SHOW_MEMORY_COMMAND_ID = "show-memory";
 var SHOW_MEMORY_COMMAND_NAME = "Show memory";
+var AI_REFLECTION_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+var AI_REFLECTION_MODEL = "gpt-4o-mini";
 var MS_PER_DAY = 24 * 60 * 60 * 1e3;
 function toComparableTag(tag) {
   return tag.trim().replace(/^#/, "").toLowerCase();
@@ -174,7 +176,8 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
         memory,
         this.settings.aiEnabled,
         (currentPath) => this.selectMemory(currentPath),
-        (shownMemory) => this.recordMemoryShown(shownMemory, Date.now())
+        (shownMemory) => this.recordMemoryShown(shownMemory, Date.now()),
+        (excerpt) => this.generateReflection(excerpt)
       ).open();
       await this.recordMemoryShown(memory, Date.now());
       return true;
@@ -275,14 +278,63 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       contentHash: createContentHash(excerpt)
     };
   }
+  async generateReflection(excerpt) {
+    var _a, _b, _c, _d;
+    if (!this.settings.apiKey) {
+      new import_obsidian.Notice("Add an API key in Gentle Memories settings to generate reflections.");
+      return null;
+    }
+    try {
+      const response = await fetch(AI_REFLECTION_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${this.settings.apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: AI_REFLECTION_MODEL,
+          messages: [
+            {
+              role: "system",
+              content: [
+                "Write a short reflection or encouragement in 1 to 3 sentences.",
+                "Be specific to the excerpt.",
+                "Do not claim knowledge beyond the excerpt.",
+                "Do not provide medical or therapeutic advice.",
+                "Do not include diagnosis, crisis instructions, or urgent medical guidance."
+              ].join(" ")
+            },
+            {
+              role: "user",
+              content: excerpt
+            }
+          ]
+        })
+      });
+      if (!response.ok) {
+        throw new Error(`AI request failed with ${response.status}`);
+      }
+      const data = await response.json();
+      const reflection = (_d = (_c = (_b = (_a = data.choices) == null ? void 0 : _a[0]) == null ? void 0 : _b.message) == null ? void 0 : _c.content) == null ? void 0 : _d.trim();
+      if (!reflection) {
+        throw new Error("AI response did not include reflection text");
+      }
+      return reflection;
+    } catch (error) {
+      console.error(error);
+      new import_obsidian.Notice("Could not generate reflection. Try again later.");
+      return null;
+    }
+  }
 };
 var MemoryModal = class extends import_obsidian.Modal {
-  constructor(app, memory, aiEnabled, selectNextMemory, recordMemoryShown) {
+  constructor(app, memory, aiEnabled, selectNextMemory, recordMemoryShown, generateReflection) {
     super(app);
     this.memory = memory;
     this.aiEnabled = aiEnabled;
     this.selectNextMemory = selectNextMemory;
     this.recordMemoryShown = recordMemoryShown;
+    this.generateReflection = generateReflection;
   }
   onOpen() {
     const { contentEl } = this;
@@ -298,6 +350,12 @@ var MemoryModal = class extends import_obsidian.Modal {
       cls: "gentle-memories-excerpt",
       text: this.memory.excerpt
     });
+    if (this.reflectionText) {
+      contentEl.createEl("p", {
+        cls: "gentle-memories-reflection",
+        text: this.reflectionText
+      });
+    }
     const buttonContainer = contentEl.createDiv({ cls: "gentle-memories-buttons" });
     const buttons = new import_obsidian.Setting(buttonContainer).addButton((button) => button.setButtonText("Open note").onClick(() => {
       void this.openSourceNote();
@@ -305,7 +363,9 @@ var MemoryModal = class extends import_obsidian.Modal {
       void this.showNextMemory();
     })).addButton((button) => button.setButtonText("Close").onClick(() => this.close()));
     if (this.aiEnabled) {
-      buttons.addButton((button) => button.setButtonText("Generate reflection"));
+      buttons.addButton((button) => button.setButtonText("Generate reflection").onClick(() => {
+        void this.showReflection();
+      }));
     }
   }
   async openSourceNote() {
@@ -316,8 +376,16 @@ var MemoryModal = class extends import_obsidian.Modal {
     const nextMemory = await this.selectNextMemory(this.memory.path);
     if (nextMemory) {
       this.memory = nextMemory;
+      this.reflectionText = void 0;
       this.onOpen();
       await this.recordMemoryShown(nextMemory);
+    }
+  }
+  async showReflection() {
+    const reflection = await this.generateReflection(this.memory.excerpt);
+    if (reflection) {
+      this.reflectionText = reflection;
+      this.onOpen();
     }
   }
 };

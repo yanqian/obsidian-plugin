@@ -39,6 +39,14 @@ interface MemoryEntry {
   contentHash: string;
 }
 
+interface AiReflectionResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+}
+
 const DEFAULT_SETTINGS: PluginSettings = {
   journalTags: ["journal", "diary", "note"],
   showOnStartup: true,
@@ -55,6 +63,8 @@ const DEFAULT_DISPLAY_HISTORY: DisplayHistory = {
 
 const SHOW_MEMORY_COMMAND_ID = "show-memory";
 const SHOW_MEMORY_COMMAND_NAME = "Show memory";
+const AI_REFLECTION_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+const AI_REFLECTION_MODEL = "gpt-4o-mini";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function toComparableTag(tag: string): string {
@@ -243,7 +253,8 @@ export default class GentleMemoriesPlugin extends Plugin {
         memory,
         this.settings.aiEnabled,
         (currentPath) => this.selectMemory(currentPath),
-        (shownMemory) => this.recordMemoryShown(shownMemory, Date.now())
+        (shownMemory) => this.recordMemoryShown(shownMemory, Date.now()),
+        (excerpt) => this.generateReflection(excerpt)
       ).open();
       await this.recordMemoryShown(memory, Date.now());
       return true;
@@ -369,6 +380,59 @@ export default class GentleMemoriesPlugin extends Plugin {
       contentHash: createContentHash(excerpt)
     };
   }
+
+  private async generateReflection(excerpt: string): Promise<string | null> {
+    if (!this.settings.apiKey) {
+      new Notice("Add an API key in Gentle Memories settings to generate reflections.");
+      return null;
+    }
+
+    try {
+      const response = await fetch(AI_REFLECTION_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${this.settings.apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: AI_REFLECTION_MODEL,
+          messages: [
+            {
+              role: "system",
+              content: [
+                "Write a short reflection or encouragement in 1 to 3 sentences.",
+                "Be specific to the excerpt.",
+                "Do not claim knowledge beyond the excerpt.",
+                "Do not provide medical or therapeutic advice.",
+                "Do not include diagnosis, crisis instructions, or urgent medical guidance."
+              ].join(" ")
+            },
+            {
+              role: "user",
+              content: excerpt
+            }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI request failed with ${response.status}`);
+      }
+
+      const data = await response.json() as AiReflectionResponse;
+      const reflection = data.choices?.[0]?.message?.content?.trim();
+
+      if (!reflection) {
+        throw new Error("AI response did not include reflection text");
+      }
+
+      return reflection;
+    } catch (error) {
+      console.error(error);
+      new Notice("Could not generate reflection. Try again later.");
+      return null;
+    }
+  }
 }
 
 class MemoryModal extends Modal {
@@ -377,10 +441,13 @@ class MemoryModal extends Modal {
     private memory: MemoryEntry,
     private readonly aiEnabled: boolean,
     private readonly selectNextMemory: (currentPath: string) => Promise<MemoryEntry | null>,
-    private readonly recordMemoryShown: (memory: MemoryEntry) => Promise<void>
+    private readonly recordMemoryShown: (memory: MemoryEntry) => Promise<void>,
+    private readonly generateReflection: (excerpt: string) => Promise<string | null>
   ) {
     super(app);
   }
+
+  private reflectionText: string | undefined;
 
   onOpen(): void {
     const { contentEl } = this;
@@ -399,6 +466,13 @@ class MemoryModal extends Modal {
       text: this.memory.excerpt
     });
 
+    if (this.reflectionText) {
+      contentEl.createEl("p", {
+        cls: "gentle-memories-reflection",
+        text: this.reflectionText
+      });
+    }
+
     const buttonContainer = contentEl.createDiv({ cls: "gentle-memories-buttons" });
     const buttons = new Setting(buttonContainer)
       .addButton((button) => button
@@ -414,7 +488,11 @@ class MemoryModal extends Modal {
       .addButton((button) => button.setButtonText("Close").onClick(() => this.close()));
 
     if (this.aiEnabled) {
-      buttons.addButton((button) => button.setButtonText("Generate reflection"));
+      buttons.addButton((button) => button
+        .setButtonText("Generate reflection")
+        .onClick(() => {
+          void this.showReflection();
+        }));
     }
   }
 
@@ -428,8 +506,18 @@ class MemoryModal extends Modal {
 
     if (nextMemory) {
       this.memory = nextMemory;
+      this.reflectionText = undefined;
       this.onOpen();
       await this.recordMemoryShown(nextMemory);
+    }
+  }
+
+  private async showReflection(): Promise<void> {
+    const reflection = await this.generateReflection(this.memory.excerpt);
+
+    if (reflection) {
+      this.reflectionText = reflection;
+      this.onOpen();
     }
   }
 }
