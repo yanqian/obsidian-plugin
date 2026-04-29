@@ -164,8 +164,8 @@ def startup_protocol() -> None:
     sh(["./init.sh"])
 
 
-def run_agent(fid: str, dry_run: bool) -> subprocess.CompletedProcess[str]:
-    prompt = f"""
+def coding_prompt(fid: str) -> str:
+    return f"""
 Act as Coding Agent.
 
 Strictly follow AGENTS.md, except the parent orchestrator owns the final git commit for this unattended run.
@@ -183,11 +183,72 @@ Rules:
 - Do not stage or commit changes; the orchestrator will validate and commit this round.
 - Do not modify unrelated pre-existing working tree changes.
 """
+
+
+def evaluator_prompt(fid: str) -> str:
+    return f"""
+Act as Evaluator Agent.
+
+Your job is to verify whether feature {fid} is truly complete.
+
+You must:
+1. Read AGENTS.md
+2. Read feature_list.json
+3. Read progress.md
+4. Run ./init.sh
+5. Inspect the implementation related to {fid}
+6. Run relevant tests / harness checks if available
+7. Verify the feature against its description and acceptance criteria
+
+Strict rules:
+- Do NOT implement new features
+- Do NOT mark unrelated features as done
+- Do NOT accept incomplete work
+- Prevent premature completion
+- If verification fails, explain the exact failure
+
+Output one of:
+- EVAL_PASS: {fid}
+- EVAL_FAIL: {fid}: <reason>
+"""
+
+
+def run_agent(prompt: str, dry_run: bool, label: str) -> subprocess.CompletedProcess[str]:
     if dry_run:
-        print("Dry run: would execute codex for prompt:")
+        print(f"Dry run: would execute {label} codex prompt:")
         print(prompt)
         return subprocess.CompletedProcess(["codex", "exec", prompt], 0)
-    return subprocess.run(["codex", "exec", prompt], text=True)
+    result = subprocess.run(["codex", "exec", prompt], text=True, capture_output=True)
+    if result.stdout:
+        print(result.stdout, end="", flush=True)
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr, flush=True)
+    return result
+
+
+def run_coding_agent(fid: str, dry_run: bool) -> subprocess.CompletedProcess[str]:
+    return run_agent(coding_prompt(fid), dry_run, "Coding Agent")
+
+
+def run_evaluator_agent(fid: str, dry_run: bool) -> subprocess.CompletedProcess[str]:
+    return run_agent(evaluator_prompt(fid), dry_run, "Evaluator Agent")
+
+
+def evaluator_result(fid: str, result: subprocess.CompletedProcess[str]) -> tuple[bool, str]:
+    output = "\n".join(part for part in [result.stdout, result.stderr] if part)
+    pass_line = f"EVAL_PASS: {fid}"
+    fail_prefix = f"EVAL_FAIL: {fid}:"
+
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(fail_prefix):
+            return False, stripped[len(fail_prefix):].strip() or "Evaluator reported failure."
+
+    for line in output.splitlines():
+        if line.strip() == pass_line:
+            return True, ""
+
+    return False, f"Evaluator did not emit required pass line: {pass_line}"
 
 
 def parse_args() -> argparse.Namespace:
@@ -212,27 +273,35 @@ def main() -> int:
         fid = feature["id"]
         print(f"\n== Round {round_no}: {fid} ==", flush=True)
         if args.dry_run:
-            run_agent(fid, dry_run=True)
+            run_coding_agent(fid, dry_run=True)
+            run_evaluator_agent(fid, dry_run=True)
             return 0
 
         baseline = status_entries()
         mark_in_progress(fid)
 
-        result = run_agent(fid, args.dry_run)
-        if result.returncode != 0:
-            error = f"codex exec exited with code {result.returncode}"
+        coding_result = run_coding_agent(fid, args.dry_run)
+        if coding_result.returncode != 0:
+            error = f"coding agent exited with code {coding_result.returncode}"
             mark_failed(fid, error, args.max_attempts)
             commit_round(fid, f"Block {fid}", baseline, args.dry_run)
             print(f"Failed: {fid}: {error}", flush=True)
             continue
 
-        try:
-            sh(["./init.sh"])
-        except subprocess.CalledProcessError as exc:
-            error = f"post-run validation failed with code {exc.returncode}"
+        evaluator = run_evaluator_agent(fid, args.dry_run)
+        if evaluator.returncode != 0:
+            error = f"evaluator agent exited with code {evaluator.returncode}"
             mark_failed(fid, error, args.max_attempts)
             commit_round(fid, f"Block {fid}", baseline, args.dry_run)
-            print(f"Blocked after validation failure: {fid}", flush=True)
+            print(f"Evaluation failed: {fid}: {error}", flush=True)
+            continue
+
+        passed, reason = evaluator_result(fid, evaluator)
+        if not passed:
+            error = reason or "Evaluator rejected the feature."
+            mark_failed(fid, error, args.max_attempts)
+            commit_round(fid, f"Block {fid}", baseline, args.dry_run)
+            print(f"Evaluation failed: {fid}: {error}", flush=True)
             continue
 
         mark_done(fid)
