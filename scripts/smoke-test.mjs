@@ -583,6 +583,54 @@ layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
 openedFiles.length = 0;
+const disabledAiNetworkRequests = [];
+globalThis.fetch = async (...args) => {
+  disabledAiNetworkRequests.push(args);
+  throw new Error("Network request occurred while AI was disabled");
+};
+
+try {
+  const disabledAiStartupPlugin = new GentleMemoriesPlugin(createMockApp());
+  disabledAiStartupPlugin.data = {
+    settings: {
+      showOnStartup: true,
+      aiEnabled: false,
+      apiKey: "test-api-key"
+    }
+  };
+  await disabledAiStartupPlugin.onload();
+  layoutCallbacks.forEach((callback) => callback());
+  await flushPromises();
+  assertMemoryModal("AI-disabled startup display must omit the AI button even when an API key is saved");
+
+  layoutCallbacks = [];
+  notices.length = 0;
+  renderedModals.length = 0;
+  openedFiles.length = 0;
+  const disabledAiManualPlugin = new GentleMemoriesPlugin(createMockApp());
+  disabledAiManualPlugin.data = {
+    settings: {
+      showOnStartup: false,
+      aiEnabled: false,
+      apiKey: "test-api-key"
+    }
+  };
+  await disabledAiManualPlugin.onload();
+  disabledAiManualPlugin.commands.find((command) => command.id === "show-memory")?.callback();
+  await flushPromises();
+  assertMemoryModal("AI-disabled manual display must omit the AI button even when an API key is saved");
+
+  if (disabledAiNetworkRequests.length !== 0) {
+    throw new Error("No network request may occur while AI is disabled");
+  }
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
 const enabledStartupPlugin = new GentleMemoriesPlugin(createMockApp());
 enabledStartupPlugin.data = { settings: { showOnStartup: true } };
 await enabledStartupPlugin.onload();

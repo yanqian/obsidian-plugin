@@ -125,9 +125,9 @@
     {
       "id": "F016",
       "description": "No network request occurs while AI is disabled.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {
