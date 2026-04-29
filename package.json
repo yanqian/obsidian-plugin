@@ -7,7 +7,8 @@
     "build": "tsc --noEmit && node esbuild.config.mjs production",
     "dev": "node esbuild.config.mjs",
     "serve:smoke": "node scripts/smoke-server.mjs",
-    "smoke": "node scripts/smoke-test.mjs"
+    "smoke": "node scripts/smoke-test.mjs",
+    "verify:manual-plan": "node scripts/verify-manual-plan.mjs"
   },
   "keywords": [
     "obsidian",

@@ -157,9 +157,9 @@
     {
       "id": "F020",
       "description": "Manual verification plan scenarios from SPEC.md section 14 are documented and runnable.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 3,
+      "passes": true,
+      "status": "done",
+      "attempts": 4,
       "last_error": ""
     }
   ]

@@ -39,5 +39,6 @@ for _ in 1 2 3 4 5; do
 done
 
 npm run smoke
+npm run verify:manual-plan
 
 echo "Project initialized successfully."
