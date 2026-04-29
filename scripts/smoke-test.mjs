@@ -549,6 +549,40 @@ layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
 openedFiles.length = 0;
+const originalFetch = globalThis.fetch;
+const preClickNetworkRequests = [];
+globalThis.fetch = async (...args) => {
+  preClickNetworkRequests.push(args);
+  throw new Error("Network request occurred before Generate reflection was clicked");
+};
+
+try {
+  const aiEnabledStartupPlugin = new GentleMemoriesPlugin(createMockApp());
+  aiEnabledStartupPlugin.data = {
+    settings: {
+      showOnStartup: true,
+      aiEnabled: true,
+      apiKey: "test-api-key"
+    }
+  };
+  await aiEnabledStartupPlugin.onload();
+  layoutCallbacks.forEach((callback) => callback());
+  await flushPromises();
+  assertMemoryModal("AI-enabled startup display must include the AI button before any reflection request", {
+    expectAiButton: true
+  });
+
+  if (preClickNetworkRequests.length !== 0) {
+    throw new Error("No network request may occur before the user clicks Generate reflection");
+  }
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
 const enabledStartupPlugin = new GentleMemoriesPlugin(createMockApp());
 enabledStartupPlugin.data = { settings: { showOnStartup: true } };
 await enabledStartupPlugin.onload();

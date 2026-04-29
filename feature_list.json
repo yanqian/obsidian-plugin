@@ -117,9 +117,9 @@
     {
       "id": "F015",
       "description": "No network request occurs before the user clicks Generate reflection.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {
