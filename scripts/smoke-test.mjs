@@ -53,7 +53,8 @@ const requiredSettingNames = [
   "AI provider",
   "OpenAI API key",
   "Claude API key",
-  "Cache AI responses"
+  "Cache AI responses",
+  "Debug mode"
 ];
 
 for (const settingName of requiredSettingNames) {
@@ -70,7 +71,8 @@ const requiredSettingKeys = [
   "aiProvider",
   "openAiApiKey",
   "claudeApiKey",
-  "cacheAiResponses"
+  "cacheAiResponses",
+  "debugMode"
 ];
 
 for (const settingKey of requiredSettingKeys) {
@@ -400,6 +402,8 @@ const msPerDay = 24 * 60 * 60 * 1000;
 const originalDateNow = Date.now;
 const fixedNow = new Date("2026-04-28T00:00:00.000Z").getTime();
 Date.now = () => fixedNow;
+const originalConsoleDebug = console.debug;
+const originalFetch = globalThis.fetch;
 
 const configuredTags = ["journal", "diary", "note"];
 
@@ -778,6 +782,152 @@ layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
 openedFiles.length = 0;
+const debugDefaultPlugin = new GentleMemoriesPlugin(createMockApp());
+debugDefaultPlugin.data = { settings: { showOnStartup: false } };
+await debugDefaultPlugin.onload();
+
+if (debugDefaultPlugin.settings.debugMode !== false) {
+  throw new Error("Debug mode must be disabled by default");
+}
+
+const debugDefaultSettingsTab = debugDefaultPlugin.settingTabs[0];
+debugDefaultSettingsTab.display();
+
+if (!debugDefaultSettingsTab.containerEl.settings.some((setting) => setting.name === "Debug mode")) {
+  throw new Error("Settings tab must expose the Debug mode setting");
+}
+
+if (debugDefaultSettingsTab.containerEl.settings.some((setting) => setting.name === "Show memory now")) {
+  throw new Error("Debug show-memory control must be hidden while debug mode is disabled");
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
+const debugLogs = [];
+console.debug = (...args) => {
+  debugLogs.push(args);
+};
+
+try {
+  const debugPlugin = new GentleMemoriesPlugin(createMockApp([{
+    path: "Logs/2024-08-01 Journal.md",
+    basename: "2024-08-01 Journal",
+    date: "2024-08-01",
+    excerpt: "A debug-safe memory excerpt with enough detail to display.",
+    extraContent: "FULL_DEBUG_NOTE_SECRET_must_not_be_logged"
+  }]));
+  debugPlugin.data = {
+    settings: {
+      showOnStartup: false,
+      minDaysBetweenStartupShows: 365,
+      debugMode: true,
+      aiEnabled: true,
+      openAiApiKey: "debug-api-key",
+      cacheAiResponses: true
+    },
+    lastStartupMemoryShownAt: fixedNow
+  };
+  await debugPlugin.onload();
+
+  if (layoutCallbacks.length !== 0) {
+    throw new Error("Debug test setup must not queue startup display when showOnStartup is false");
+  }
+
+  const debugSettingsTab = debugPlugin.settingTabs[0];
+  debugSettingsTab.display();
+
+  if (!debugSettingsTab.containerEl.settings.some((setting) => setting.name === "Show memory now")) {
+    throw new Error("Debug mode must expose a settings-tab show-memory control");
+  }
+
+  const debugShowMemoryHandler = debugSettingsTab.containerEl.buttonHandlers.get("Show memory");
+
+  if (typeof debugShowMemoryHandler !== "function") {
+    throw new Error("Debug show-memory control must have a click handler");
+  }
+
+  debugShowMemoryHandler();
+  await flushPromises();
+
+  assertMemoryModal("Debug show-memory control must show a memory immediately", {
+    expectAiButton: true,
+    expectedTitle: "2024-08-01 Journal",
+    expectedDate: "2024-08-01",
+    expectedExcerpt: "A debug-safe memory excerpt with enough detail to display."
+  });
+
+  const debugLogTextBeforeAi = JSON.stringify(debugLogs);
+
+  for (const requiredText of [
+    "journal-note-discovery",
+    "candidateNoteCount",
+    "memory-filter-outcomes",
+    "memory-selection",
+    "Logs/2024-08-01 Journal.md"
+  ]) {
+    if (!debugLogTextBeforeAi.includes(requiredText)) {
+      throw new Error(`Debug logging must include ${requiredText}`);
+    }
+  }
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    async json() {
+      return {
+        choices: [{
+          message: {
+            content: "Debug reflection text."
+          }
+        }]
+      };
+    }
+  });
+
+  await clickModalButton("Generate reflection");
+
+  const debugLogTextAfterAi = JSON.stringify(debugLogs);
+
+  if (!debugLogTextAfterAi.includes("ai-cache") || !debugLogTextAfterAi.includes("miss")) {
+    throw new Error("Debug logging must include AI cache misses");
+  }
+
+  debugLogs.length = 0;
+  renderedModals.length = 0;
+  debugShowMemoryHandler();
+  await flushPromises();
+  await clickModalButton("Generate reflection");
+
+  const debugLogTextAfterCacheHit = JSON.stringify(debugLogs);
+
+  if (!debugLogTextAfterCacheHit.includes("ai-cache") || !debugLogTextAfterCacheHit.includes("hit")) {
+    throw new Error("Debug logging must include AI cache hits");
+  }
+
+  for (const forbiddenDebugText of [
+    "Personal Vault",
+    "debug-api-key",
+    "FULL_DEBUG_NOTE_SECRET_must_not_be_logged",
+    "Authorization",
+    "x-api-key"
+  ]) {
+    if (debugLogTextBeforeAi.includes(forbiddenDebugText) ||
+      debugLogTextAfterAi.includes(forbiddenDebugText) ||
+      debugLogTextAfterCacheHit.includes(forbiddenDebugText)) {
+      throw new Error(`Debug logging must not include private diagnostic content: ${forbiddenDebugText}`);
+    }
+  }
+} finally {
+  console.debug = originalConsoleDebug;
+  globalThis.fetch = originalFetch;
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
 const aiEnabledManualPlugin = new GentleMemoriesPlugin(createMockApp());
 aiEnabledManualPlugin.data = { settings: { showOnStartup: false, aiEnabled: true } };
 await aiEnabledManualPlugin.onload();
@@ -789,7 +939,6 @@ layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
 openedFiles.length = 0;
-const originalFetch = globalThis.fetch;
 const preClickNetworkRequests = [];
 globalThis.fetch = async (...args) => {
   preClickNetworkRequests.push(args);

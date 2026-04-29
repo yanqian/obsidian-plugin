@@ -9,6 +9,7 @@ interface PluginSettings {
   openAiApiKey?: string;
   claudeApiKey?: string;
   cacheAiResponses: boolean;
+  debugMode: boolean;
 }
 
 interface PluginData {
@@ -66,7 +67,8 @@ const DEFAULT_SETTINGS: PluginSettings = {
   aiProvider: "openai",
   openAiApiKey: undefined,
   claudeApiKey: undefined,
-  cacheAiResponses: true
+  cacheAiResponses: true,
+  debugMode: false
 };
 
 const DEFAULT_DISPLAY_HISTORY: DisplayHistory = {
@@ -135,7 +137,8 @@ function normalizeSettings(value: unknown): PluginSettings {
     claudeApiKey,
     cacheAiResponses: typeof saved.cacheAiResponses === "boolean"
       ? saved.cacheAiResponses
-      : DEFAULT_SETTINGS.cacheAiResponses
+      : DEFAULT_SETTINGS.cacheAiResponses,
+    debugMode: typeof saved.debugMode === "boolean" ? saved.debugMode : DEFAULT_SETTINGS.debugMode
   };
 }
 
@@ -262,12 +265,19 @@ export default class GentleMemoriesPlugin extends Plugin {
   }
 
   discoverJournalNotes(): TFile[] {
-    return this.app.vault
-      .getMarkdownFiles()
-      .filter((file) => noteHasConfiguredJournalTag(
-        this.app.metadataCache.getFileCache(file),
-        this.settings.journalTags
-      ));
+    const markdownFiles = this.app.vault.getMarkdownFiles();
+    const journalNotes = markdownFiles.filter((file) => noteHasConfiguredJournalTag(
+      this.app.metadataCache.getFileCache(file),
+      this.settings.journalTags
+    ));
+
+    this.debugLog("journal-note-discovery", {
+      markdownNoteCount: markdownFiles.length,
+      candidateNoteCount: journalNotes.length,
+      rejectedByTagCount: markdownFiles.length - journalNotes.length
+    });
+
+    return journalNotes;
   }
 
   async showMemory(options: { showNotice?: boolean } = {}): Promise<boolean> {
@@ -297,16 +307,27 @@ export default class GentleMemoriesPlugin extends Plugin {
   private async selectMemory(excludedPath?: string): Promise<MemoryEntry | null> {
     const journalNotes = this.discoverJournalNotes();
     const memories: MemoryEntry[] = [];
+    let unusableNoteCount = 0;
 
     for (const journalNote of journalNotes) {
       const memory = await this.createMemoryEntry(journalNote);
 
       if (memory) {
         memories.push(memory);
+      } else {
+        unusableNoteCount += 1;
       }
     }
 
+    this.debugLog("memory-filter-outcomes", {
+      candidateNoteCount: journalNotes.length,
+      usableMemoryCount: memories.length,
+      unusableNoteCount,
+      excludedCurrentPath: Boolean(excludedPath)
+    });
+
     if (memories.length === 0) {
+      this.debugLog("memory-selection", { selected: false });
       return null;
     }
 
@@ -316,7 +337,15 @@ export default class GentleMemoriesPlugin extends Plugin {
     const neverShownMemories = eligibleMemories.filter((memory) => !this.displayHistory.shown[memory.path]);
     const selectableMemories = neverShownMemories.length > 0 ? neverShownMemories : eligibleMemories;
 
-    return selectableMemories[0] ?? null;
+    const selectedMemory = selectableMemories[0] ?? null;
+    this.debugLog("memory-selection", {
+      selected: Boolean(selectedMemory),
+      selectedPath: selectedMemory?.path,
+      eligibleMemoryCount: eligibleMemories.length,
+      neverShownMemoryCount: neverShownMemories.length
+    });
+
+    return selectedMemory;
   }
 
   showManualMemory(): void {
@@ -429,8 +458,21 @@ export default class GentleMemoriesPlugin extends Plugin {
       : undefined;
 
     if (cachedReflection) {
+      this.debugLog("ai-cache", {
+        outcome: "hit",
+        provider: this.settings.aiProvider,
+        path: memory.path,
+        cacheEnabled: this.settings.cacheAiResponses
+      });
       return cachedReflection.text;
     }
+
+    this.debugLog("ai-cache", {
+      outcome: "miss",
+      provider: this.settings.aiProvider,
+      path: memory.path,
+      cacheEnabled: this.settings.cacheAiResponses
+    });
 
     try {
       const response = await this.requestReflection(memory.excerpt, apiKey);
@@ -541,6 +583,14 @@ export default class GentleMemoriesPlugin extends Plugin {
 
     const data = await response.json() as AiReflectionResponse;
     return data.choices?.[0]?.message?.content?.trim();
+  }
+
+  private debugLog(event: string, details: Record<string, boolean | number | string | undefined>): void {
+    if (!this.settings.debugMode) {
+      return;
+    }
+
+    console.debug("[Gentle Memories debug]", event, details);
   }
 }
 
@@ -744,5 +794,29 @@ class GentleMemoriesSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    new Setting(containerEl)
+      .setName("Debug mode")
+      .setDesc("Show manual troubleshooting controls and privacy-safe developer console diagnostics.")
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.debugMode)
+          .onChange(async (value) => {
+            this.plugin.settings.debugMode = value;
+            await this.plugin.saveSettings();
+            this.display();
+          });
+      });
+
+    if (this.plugin.settings.debugMode) {
+      new Setting(containerEl)
+        .setName("Show memory now")
+        .setDesc("Show a memory immediately for manual verification.")
+        .addButton((button) => button
+          .setButtonText("Show memory")
+          .onClick(() => {
+            this.plugin.showManualMemory();
+          }));
+    }
   }
 }

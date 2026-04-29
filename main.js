@@ -34,7 +34,8 @@ var DEFAULT_SETTINGS = {
   aiProvider: "openai",
   openAiApiKey: void 0,
   claudeApiKey: void 0,
-  cacheAiResponses: true
+  cacheAiResponses: true,
+  debugMode: false
 };
 var DEFAULT_DISPLAY_HISTORY = {
   shown: {},
@@ -81,7 +82,8 @@ function normalizeSettings(value) {
     aiProvider: saved.aiProvider === "claude" ? "claude" : DEFAULT_SETTINGS.aiProvider,
     openAiApiKey,
     claudeApiKey,
-    cacheAiResponses: typeof saved.cacheAiResponses === "boolean" ? saved.cacheAiResponses : DEFAULT_SETTINGS.cacheAiResponses
+    cacheAiResponses: typeof saved.cacheAiResponses === "boolean" ? saved.cacheAiResponses : DEFAULT_SETTINGS.cacheAiResponses,
+    debugMode: typeof saved.debugMode === "boolean" ? saved.debugMode : DEFAULT_SETTINGS.debugMode
   };
 }
 function normalizeDisplayHistory(value) {
@@ -173,10 +175,17 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     this.queueStartupMemoryDisplay();
   }
   discoverJournalNotes() {
-    return this.app.vault.getMarkdownFiles().filter((file) => noteHasConfiguredJournalTag(
+    const markdownFiles = this.app.vault.getMarkdownFiles();
+    const journalNotes = markdownFiles.filter((file) => noteHasConfiguredJournalTag(
       this.app.metadataCache.getFileCache(file),
       this.settings.journalTags
     ));
+    this.debugLog("journal-note-discovery", {
+      markdownNoteCount: markdownFiles.length,
+      candidateNoteCount: journalNotes.length,
+      rejectedByTagCount: markdownFiles.length - journalNotes.length
+    });
+    return journalNotes;
   }
   async showMemory(options = {}) {
     var _a;
@@ -203,19 +212,36 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     var _a;
     const journalNotes = this.discoverJournalNotes();
     const memories = [];
+    let unusableNoteCount = 0;
     for (const journalNote of journalNotes) {
       const memory = await this.createMemoryEntry(journalNote);
       if (memory) {
         memories.push(memory);
+      } else {
+        unusableNoteCount += 1;
       }
     }
+    this.debugLog("memory-filter-outcomes", {
+      candidateNoteCount: journalNotes.length,
+      usableMemoryCount: memories.length,
+      unusableNoteCount,
+      excludedCurrentPath: Boolean(excludedPath)
+    });
     if (memories.length === 0) {
+      this.debugLog("memory-selection", { selected: false });
       return null;
     }
     const eligibleMemories = excludedPath && memories.some((memory) => memory.path !== excludedPath) ? memories.filter((memory) => memory.path !== excludedPath) : memories;
     const neverShownMemories = eligibleMemories.filter((memory) => !this.displayHistory.shown[memory.path]);
     const selectableMemories = neverShownMemories.length > 0 ? neverShownMemories : eligibleMemories;
-    return (_a = selectableMemories[0]) != null ? _a : null;
+    const selectedMemory = (_a = selectableMemories[0]) != null ? _a : null;
+    this.debugLog("memory-selection", {
+      selected: Boolean(selectedMemory),
+      selectedPath: selectedMemory == null ? void 0 : selectedMemory.path,
+      eligibleMemoryCount: eligibleMemories.length,
+      neverShownMemoryCount: neverShownMemories.length
+    });
+    return selectedMemory;
   }
   showManualMemory() {
     void this.showMemory();
@@ -304,8 +330,20 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     const cacheKey = this.getAiCacheKey(memory);
     const cachedReflection = this.settings.cacheAiResponses ? this.displayHistory.aiCache[cacheKey] : void 0;
     if (cachedReflection) {
+      this.debugLog("ai-cache", {
+        outcome: "hit",
+        provider: this.settings.aiProvider,
+        path: memory.path,
+        cacheEnabled: this.settings.cacheAiResponses
+      });
       return cachedReflection.text;
     }
+    this.debugLog("ai-cache", {
+      outcome: "miss",
+      provider: this.settings.aiProvider,
+      path: memory.path,
+      cacheEnabled: this.settings.cacheAiResponses
+    });
     try {
       const response = await this.requestReflection(memory.excerpt, apiKey);
       if (!response.ok) {
@@ -399,6 +437,12 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     }
     const data = await response.json();
     return (_g = (_f = (_e = (_d = data.choices) == null ? void 0 : _d[0]) == null ? void 0 : _e.message) == null ? void 0 : _f.content) == null ? void 0 : _g.trim();
+  }
+  debugLog(event, details) {
+    if (!this.settings.debugMode) {
+      return;
+    }
+    console.debug("[Gentle Memories debug]", event, details);
   }
 };
 var MemoryModal = class extends import_obsidian.Modal {
@@ -532,5 +576,17 @@ var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
+    new import_obsidian.Setting(containerEl).setName("Debug mode").setDesc("Show manual troubleshooting controls and privacy-safe developer console diagnostics.").addToggle((toggle) => {
+      toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
+        this.plugin.settings.debugMode = value;
+        await this.plugin.saveSettings();
+        this.display();
+      });
+    });
+    if (this.plugin.settings.debugMode) {
+      new import_obsidian.Setting(containerEl).setName("Show memory now").setDesc("Show a memory immediately for manual verification.").addButton((button) => button.setButtonText("Show memory").onClick(() => {
+        this.plugin.showManualMemory();
+      }));
+    }
   }
 };

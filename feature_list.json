@@ -173,9 +173,9 @@
     {
       "id": "F022",
       "description": "Debug mode adds a settings-tab show-memory control and privacy-safe diagnostic logging.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {
