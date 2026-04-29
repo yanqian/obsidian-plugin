@@ -382,6 +382,15 @@ Module._load = function loadWithObsidianMock(request, parent, isMain) {
       getAllTags(cache) {
         return cache?.__allTags;
       },
+      MarkdownRenderer: {
+        render(_app, markdown, element) {
+          if (typeof markdown === "string") {
+            element.texts.push(markdown);
+          }
+
+          return Promise.resolve();
+        }
+      },
       Modal: MockModal,
       Notice: MockNotice,
       Plugin: MockPlugin,
@@ -934,6 +943,111 @@ await aiEnabledManualPlugin.onload();
 aiEnabledManualPlugin.commands.find((command) => command.id === "show-memory")?.callback();
 await flushPromises();
 assertMemoryModal("Manual show memory command must include AI button when AI is enabled", { expectAiButton: true });
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
+const longNoteStart = "A long rendered memory begins with enough detail to remain visible in the compact preview.";
+const longNoteEnd = "FINAL_LONG_NOTE_DETAIL_visible_only_after_show_more";
+const longNotePlugin = new GentleMemoriesPlugin(createMockApp([{
+  path: "Long/2024-07-01 Journal.md",
+  basename: "2024-07-01 Journal",
+  date: "2024-07-01",
+  excerpt: `${longNoteStart} ${"additional sentence. ".repeat(90)}`,
+  extraContent: `${"Middle paragraph with [[wikilink]] and ![[image.png]]. ".repeat(45)}\n\n${longNoteEnd}`
+}]));
+longNotePlugin.data = { settings: { showOnStartup: false, aiEnabled: true } };
+await longNotePlugin.onload();
+longNotePlugin.commands.find((command) => command.id === "show-memory")?.callback();
+await flushPromises();
+
+let longNoteModal = renderedModals[0];
+let longNoteText = longNoteModal.texts.join("\n");
+
+if (!longNoteText.includes(longNoteStart)) {
+  throw new Error("Rich memory display must render the source note Markdown preview");
+}
+
+if (longNoteText.includes(longNoteEnd)) {
+  throw new Error("Long rich memory display must start with a compact preview");
+}
+
+if (!longNoteModal.buttons.includes("Show more")) {
+  throw new Error("Long rich memory display must include Show more before expansion");
+}
+
+await clickModalButton("Show more");
+longNoteModal = renderedModals[0];
+longNoteText = longNoteModal.texts.join("\n");
+
+if (!longNoteText.includes(longNoteEnd)) {
+  throw new Error("Show more must expand long rich memory content to the full note body");
+}
+
+if (!longNoteModal.buttons.includes("Show less")) {
+  throw new Error("Expanded rich memory display must include Show less");
+}
+
+await clickModalButton("Show less");
+longNoteModal = renderedModals[0];
+longNoteText = longNoteModal.texts.join("\n");
+
+if (longNoteText.includes(longNoteEnd)) {
+  throw new Error("Show less must return long rich memory content to the compact preview");
+}
+
+if (!longNoteModal.buttons.includes("Show more")) {
+  throw new Error("Collapsed rich memory display must restore Show more");
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
+globalThis.fetch = async () => ({
+  ok: true,
+  status: 200,
+  async json() {
+    return {
+      choices: [{
+        message: {
+          content: "Reflection shown before note body."
+        }
+      }]
+    };
+  }
+});
+
+try {
+  const reflectionOrderPlugin = new GentleMemoriesPlugin(createMockApp([{
+    path: "Reflection/2024-07-02 Journal.md",
+    basename: "2024-07-02 Journal",
+    date: "2024-07-02",
+    excerpt: "Rendered body text that should appear after the reflection."
+  }]));
+  reflectionOrderPlugin.data = {
+    settings: {
+      showOnStartup: false,
+      aiEnabled: true,
+      openAiApiKey: "test-api-key"
+    }
+  };
+  await reflectionOrderPlugin.onload();
+  reflectionOrderPlugin.commands.find((command) => command.id === "show-memory")?.callback();
+  await flushPromises();
+  await clickModalButton("Generate reflection");
+
+  const renderedText = renderedModals[0].texts.join("\n");
+  const reflectionIndex = renderedText.indexOf("Reflection shown before note body.");
+  const bodyIndex = renderedText.indexOf("Rendered body text that should appear after the reflection.");
+
+  if (reflectionIndex === -1 || bodyIndex === -1 || reflectionIndex > bodyIndex) {
+    throw new Error("AI reflection must render before the rich note content after generation");
+  }
+} finally {
+  globalThis.fetch = originalFetch;
+}
 
 layoutCallbacks = [];
 notices.length = 0;

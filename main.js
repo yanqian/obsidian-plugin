@@ -48,6 +48,7 @@ var OPENAI_REFLECTION_MODEL = "gpt-4o-mini";
 var CLAUDE_REFLECTION_ENDPOINT = "https://api.anthropic.com/v1/messages";
 var CLAUDE_REFLECTION_MODEL = "claude-3-5-haiku-latest";
 var MS_PER_DAY = 24 * 60 * 60 * 1e3;
+var RICH_MEMORY_PREVIEW_CHARACTERS = 1200;
 function toComparableTag(tag) {
   return tag.trim().replace(/^#/, "").toLowerCase();
 }
@@ -143,11 +144,28 @@ function normalizeDateValue(value) {
   return (_a = value.match(/\d{4}-\d{2}-\d{2}/)) == null ? void 0 : _a[0];
 }
 function createExcerpt(markdown) {
-  const withoutFrontmatter = markdown.replace(/^---\s*\n[\s\S]*?\n---\s*/, "");
+  const withoutFrontmatter = stripFrontmatter(markdown);
   const withoutComments = withoutFrontmatter.replace(/%%[\s\S]*?%%/g, "");
   const withoutHeadings = withoutComments.replace(/^\s{0,3}#{1,6}\s.*$/gm, "");
   const withoutTagOnlyLines = withoutHeadings.split(/\r?\n/).filter((line) => !/^\s*(#[\p{L}\p{N}_/-]+\s*)+$/u.test(line)).join("\n");
   return withoutTagOnlyLines.replace(/\s+/g, " ").trim().slice(0, 200).trim();
+}
+function stripFrontmatter(markdown) {
+  return markdown.replace(/^---\s*\n[\s\S]*?\n---\s*/, "");
+}
+function createMarkdownBody(markdown) {
+  return stripFrontmatter(markdown).trim();
+}
+function createMarkdownPreview(markdown) {
+  if (markdown.length <= RICH_MEMORY_PREVIEW_CHARACTERS) {
+    return markdown;
+  }
+  const clipped = markdown.slice(0, RICH_MEMORY_PREVIEW_CHARACTERS);
+  const paragraphBreak = clipped.lastIndexOf("\n\n");
+  const preview = paragraphBreak >= 400 ? clipped.slice(0, paragraphBreak) : clipped;
+  return `${preview.trim()}
+
+...`;
 }
 function createContentHash(value) {
   let hash = 0;
@@ -194,6 +212,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     if (memory) {
       new MemoryModal(
         this.app,
+        this,
         memory,
         this.settings.aiEnabled,
         (currentPath) => this.selectMemory(currentPath),
@@ -306,6 +325,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     const cache = this.app.metadataCache.getFileCache(file);
     const content = await this.app.vault.cachedRead(file);
     const excerpt = createExcerpt(content);
+    const markdownBody = createMarkdownBody(content);
     if (excerpt === "") {
       return null;
     }
@@ -315,6 +335,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       title: deriveTitle(file),
       date: deriveDate(file, cache),
       excerpt,
+      markdownBody,
       contentHash: createContentHash(excerpt)
     };
   }
@@ -446,13 +467,15 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   }
 };
 var MemoryModal = class extends import_obsidian.Modal {
-  constructor(app, memory, aiEnabled, selectNextMemory, recordMemoryShown, generateReflection) {
+  constructor(app, parentComponent, memory, aiEnabled, selectNextMemory, recordMemoryShown, generateReflection) {
     super(app);
+    this.parentComponent = parentComponent;
     this.memory = memory;
     this.aiEnabled = aiEnabled;
     this.selectNextMemory = selectNextMemory;
     this.recordMemoryShown = recordMemoryShown;
     this.generateReflection = generateReflection;
+    this.expanded = false;
   }
   onOpen() {
     const { contentEl } = this;
@@ -464,18 +487,29 @@ var MemoryModal = class extends import_obsidian.Modal {
         text: this.memory.date
       });
     }
-    contentEl.createEl("p", {
-      cls: "gentle-memories-excerpt",
-      text: this.memory.excerpt
-    });
     if (this.reflectionText) {
       contentEl.createEl("p", {
         cls: "gentle-memories-reflection",
         text: this.reflectionText
       });
     }
+    const noteContentEl = contentEl.createDiv({ cls: "gentle-memories-note-content" });
+    const renderedMarkdown = this.expanded ? this.memory.markdownBody : createMarkdownPreview(this.memory.markdownBody);
+    void import_obsidian.MarkdownRenderer.render(this.app, renderedMarkdown, noteContentEl, this.memory.path, this.parentComponent).catch(() => {
+      noteContentEl.createEl("p", {
+        cls: "gentle-memories-excerpt",
+        text: this.memory.excerpt
+      });
+    });
     const buttonContainer = contentEl.createDiv({ cls: "gentle-memories-buttons" });
-    const buttons = new import_obsidian.Setting(buttonContainer).addButton((button) => button.setButtonText("Open note").onClick(() => {
+    const buttons = new import_obsidian.Setting(buttonContainer);
+    if (this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS) {
+      buttons.addButton((button) => button.setButtonText(this.expanded ? "Show less" : "Show more").onClick(() => {
+        this.expanded = !this.expanded;
+        this.onOpen();
+      }));
+    }
+    buttons.addButton((button) => button.setButtonText("Open note").onClick(() => {
       void this.openSourceNote();
     })).addButton((button) => button.setButtonText("Next").onClick(() => {
       void this.showNextMemory();
@@ -495,6 +529,7 @@ var MemoryModal = class extends import_obsidian.Modal {
     if (nextMemory) {
       this.memory = nextMemory;
       this.reflectionText = void 0;
+      this.expanded = false;
       this.onOpen();
       await this.recordMemoryShown(nextMemory);
     }

@@ -1,4 +1,4 @@
-import { getAllTags, Modal, Notice, Plugin, PluginSettingTab, Setting, type CachedMetadata, type TFile } from "obsidian";
+import { getAllTags, MarkdownRenderer, Modal, Notice, Plugin, PluginSettingTab, Setting, type CachedMetadata, type Component, type TFile } from "obsidian";
 
 interface PluginSettings {
   journalTags: string[];
@@ -39,6 +39,7 @@ interface MemoryEntry {
   title: string;
   date?: string;
   excerpt: string;
+  markdownBody: string;
   contentHash: string;
 }
 
@@ -83,6 +84,7 @@ const OPENAI_REFLECTION_MODEL = "gpt-4o-mini";
 const CLAUDE_REFLECTION_ENDPOINT = "https://api.anthropic.com/v1/messages";
 const CLAUDE_REFLECTION_MODEL = "claude-3-5-haiku-latest";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const RICH_MEMORY_PREVIEW_CHARACTERS = 1200;
 
 function toComparableTag(tag: string): string {
   return tag.trim().replace(/^#/, "").toLowerCase();
@@ -223,7 +225,7 @@ function normalizeDateValue(value: unknown): string | undefined {
 }
 
 function createExcerpt(markdown: string): string {
-  const withoutFrontmatter = markdown.replace(/^---\s*\n[\s\S]*?\n---\s*/, "");
+  const withoutFrontmatter = stripFrontmatter(markdown);
   const withoutComments = withoutFrontmatter.replace(/%%[\s\S]*?%%/g, "");
   const withoutHeadings = withoutComments.replace(/^\s{0,3}#{1,6}\s.*$/gm, "");
   const withoutTagOnlyLines = withoutHeadings
@@ -232,6 +234,28 @@ function createExcerpt(markdown: string): string {
     .join("\n");
 
   return withoutTagOnlyLines.replace(/\s+/g, " ").trim().slice(0, 200).trim();
+}
+
+function stripFrontmatter(markdown: string): string {
+  return markdown.replace(/^---\s*\n[\s\S]*?\n---\s*/, "");
+}
+
+function createMarkdownBody(markdown: string): string {
+  return stripFrontmatter(markdown).trim();
+}
+
+function createMarkdownPreview(markdown: string): string {
+  if (markdown.length <= RICH_MEMORY_PREVIEW_CHARACTERS) {
+    return markdown;
+  }
+
+  const clipped = markdown.slice(0, RICH_MEMORY_PREVIEW_CHARACTERS);
+  const paragraphBreak = clipped.lastIndexOf("\n\n");
+  const preview = paragraphBreak >= 400
+    ? clipped.slice(0, paragraphBreak)
+    : clipped;
+
+  return `${preview.trim()}\n\n...`;
 }
 
 function createContentHash(value: string): string {
@@ -287,6 +311,7 @@ export default class GentleMemoriesPlugin extends Plugin {
     if (memory) {
       new MemoryModal(
         this.app,
+        this,
         memory,
         this.settings.aiEnabled,
         (currentPath) => this.selectMemory(currentPath),
@@ -425,6 +450,7 @@ export default class GentleMemoriesPlugin extends Plugin {
     const cache = this.app.metadataCache.getFileCache(file);
     const content = await this.app.vault.cachedRead(file);
     const excerpt = createExcerpt(content);
+    const markdownBody = createMarkdownBody(content);
 
     if (excerpt === "") {
       return null;
@@ -436,6 +462,7 @@ export default class GentleMemoriesPlugin extends Plugin {
       title: deriveTitle(file),
       date: deriveDate(file, cache),
       excerpt,
+      markdownBody,
       contentHash: createContentHash(excerpt)
     };
   }
@@ -597,6 +624,7 @@ export default class GentleMemoriesPlugin extends Plugin {
 class MemoryModal extends Modal {
   constructor(
     app: GentleMemoriesPlugin["app"],
+    private readonly parentComponent: Component,
     private memory: MemoryEntry,
     private readonly aiEnabled: boolean,
     private readonly selectNextMemory: (currentPath: string) => Promise<MemoryEntry | null>,
@@ -607,6 +635,7 @@ class MemoryModal extends Modal {
   }
 
   private reflectionText: string | undefined;
+  private expanded = false;
 
   onOpen(): void {
     const { contentEl } = this;
@@ -620,11 +649,6 @@ class MemoryModal extends Modal {
       });
     }
 
-    contentEl.createEl("p", {
-      cls: "gentle-memories-excerpt",
-      text: this.memory.excerpt
-    });
-
     if (this.reflectionText) {
       contentEl.createEl("p", {
         cls: "gentle-memories-reflection",
@@ -632,8 +656,33 @@ class MemoryModal extends Modal {
       });
     }
 
+    const noteContentEl = contentEl.createDiv({ cls: "gentle-memories-note-content" });
+    const renderedMarkdown = this.expanded
+      ? this.memory.markdownBody
+      : createMarkdownPreview(this.memory.markdownBody);
+
+    void MarkdownRenderer
+      .render(this.app, renderedMarkdown, noteContentEl, this.memory.path, this.parentComponent)
+      .catch(() => {
+        noteContentEl.createEl("p", {
+          cls: "gentle-memories-excerpt",
+          text: this.memory.excerpt
+        });
+      });
+
     const buttonContainer = contentEl.createDiv({ cls: "gentle-memories-buttons" });
-    const buttons = new Setting(buttonContainer)
+    const buttons = new Setting(buttonContainer);
+
+    if (this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS) {
+      buttons.addButton((button) => button
+        .setButtonText(this.expanded ? "Show less" : "Show more")
+        .onClick(() => {
+          this.expanded = !this.expanded;
+          this.onOpen();
+        }));
+    }
+
+    buttons
       .addButton((button) => button
         .setButtonText("Open note")
         .onClick(() => {
@@ -666,6 +715,7 @@ class MemoryModal extends Modal {
     if (nextMemory) {
       this.memory = nextMemory;
       this.reflectionText = undefined;
+      this.expanded = false;
       this.onOpen();
       await this.recordMemoryShown(nextMemory);
     }

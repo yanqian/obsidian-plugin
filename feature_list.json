@@ -181,9 +181,9 @@
     {
       "id": "F023",
       "description": "Memory display renders rich Obsidian Markdown note content with AI reflection first and Show more or Show less for long notes.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     }
   ]
