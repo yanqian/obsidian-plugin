@@ -345,7 +345,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   async generateReflection(memory) {
     const apiKey = this.getSelectedApiKey();
     if (!apiKey) {
-      new import_obsidian.Notice(`Add a ${this.getSelectedProviderName()} API key in Gentle Memories settings to generate reflections.`);
+      new import_obsidian.Notice(`Add a ${this.getSelectedProviderName()} API key in Gentle Memories settings to generate a reading prompt.`);
       return null;
     }
     const cacheKey = this.getAiCacheKey(memory);
@@ -390,7 +390,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       return reflection;
     } catch (error) {
       console.error(error);
-      new import_obsidian.Notice("Could not generate reflection. Try again later.");
+      new import_obsidian.Notice("Could not generate a reading prompt. Try again later.");
       return null;
     }
   }
@@ -402,8 +402,10 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   }
   async requestReflection(excerpt, apiKey) {
     const systemPrompt = [
-      "Write a short reflection or encouragement in 1 to 3 sentences.",
-      "Be specific to the excerpt.",
+      "Write 1 to 3 short sentences in the same primary language as the excerpt.",
+      "Create a warm lead-in that makes the user interested in rereading the note.",
+      "The lead-in may be a brief summary, reflection, encouragement, or gentle self-reflection question.",
+      "Be specific and grounded in the excerpt.",
       "Do not claim knowledge beyond the excerpt.",
       "Do not provide medical or therapeutic advice.",
       "Do not include diagnosis, crisis instructions, or urgent medical guidance."
@@ -515,7 +517,7 @@ var MemoryModal = class extends import_obsidian.Modal {
       void this.showNextMemory();
     })).addButton((button) => button.setButtonText("Close").onClick(() => this.close()));
     if (this.aiEnabled) {
-      buttons.addButton((button) => button.setButtonText("Generate reflection").onClick(() => {
+      buttons.addButton((button) => button.setButtonText("Generate reading prompt").onClick(() => {
         void this.showReflection();
       }));
     }

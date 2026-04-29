@@ -454,12 +454,12 @@ function assertMemoryModal(message, {
     }
   }
 
-  if (expectAiButton && !buttons.includes("Generate reflection")) {
-    throw new Error("Shown memory must include the Generate reflection button when AI is enabled");
+  if (expectAiButton && !buttons.includes("Generate reading prompt")) {
+    throw new Error("Shown memory must include the Generate reading prompt button when AI is enabled");
   }
 
-  if (!expectAiButton && buttons.includes("Generate reflection")) {
-    throw new Error("Shown memory must omit the Generate reflection button when AI is disabled");
+  if (!expectAiButton && buttons.includes("Generate reading prompt")) {
+    throw new Error("Shown memory must omit the Generate reading prompt button when AI is disabled");
   }
 }
 
@@ -895,7 +895,7 @@ try {
     }
   });
 
-  await clickModalButton("Generate reflection");
+  await clickModalButton("Generate reading prompt");
 
   const debugLogTextAfterAi = JSON.stringify(debugLogs);
 
@@ -907,7 +907,7 @@ try {
   renderedModals.length = 0;
   debugShowMemoryHandler();
   await flushPromises();
-  await clickModalButton("Generate reflection");
+  await clickModalButton("Generate reading prompt");
 
   const debugLogTextAfterCacheHit = JSON.stringify(debugLogs);
 
@@ -1036,14 +1036,14 @@ try {
   await reflectionOrderPlugin.onload();
   reflectionOrderPlugin.commands.find((command) => command.id === "show-memory")?.callback();
   await flushPromises();
-  await clickModalButton("Generate reflection");
+  await clickModalButton("Generate reading prompt");
 
   const renderedText = renderedModals[0].texts.join("\n");
   const reflectionIndex = renderedText.indexOf("Reflection shown before note body.");
   const bodyIndex = renderedText.indexOf("Rendered body text that should appear after the reflection.");
 
   if (reflectionIndex === -1 || bodyIndex === -1 || reflectionIndex > bodyIndex) {
-    throw new Error("AI reflection must render before the rich note content after generation");
+    throw new Error("AI reading prompt must render before the rich note content after generation");
   }
 } finally {
   globalThis.fetch = originalFetch;
@@ -1056,7 +1056,7 @@ openedFiles.length = 0;
 const preClickNetworkRequests = [];
 globalThis.fetch = async (...args) => {
   preClickNetworkRequests.push(args);
-  throw new Error("Network request occurred before Generate reflection was clicked");
+  throw new Error("Network request occurred before Generate reading prompt was clicked");
 };
 
 try {
@@ -1076,7 +1076,7 @@ try {
   });
 
   if (preClickNetworkRequests.length !== 0) {
-    throw new Error("No network request may occur before the user clicks Generate reflection");
+    throw new Error("No network request may occur before the user clicks Generate reading prompt");
   }
 } finally {
   globalThis.fetch = originalFetch;
@@ -1196,10 +1196,10 @@ try {
     expectedExcerpt: expectedAiExcerpt
   });
 
-  await clickModalButton("Generate reflection");
+  await clickModalButton("Generate reading prompt");
 
   if (aiPrivacyRequests.length !== 1) {
-    throw new Error("Generate reflection must make exactly one request after the user clicks");
+    throw new Error("Generate reading prompt must make exactly one request after the user clicks");
   }
 
   const [_url, requestInit] = aiPrivacyRequests[0];
@@ -1211,6 +1211,17 @@ try {
 
   if (!body.includes(expectedAiExcerpt)) {
     throw new Error("AI request payload must include the current excerpt");
+  }
+
+  for (const requiredPromptText of [
+    "same primary language as the excerpt",
+    "warm lead-in",
+    "brief summary, reflection, encouragement, or gentle self-reflection question",
+    "interested in rereading the note"
+  ]) {
+    if (!body.includes(requiredPromptText)) {
+      throw new Error(`OpenAI prompt must guide warm same-language reading output: ${requiredPromptText}`);
+    }
   }
 
   for (const forbiddenText of [
@@ -1268,7 +1279,7 @@ try {
   await claudePlugin.onload();
   claudePlugin.commands.find((command) => command.id === "show-memory")?.callback();
   await flushPromises();
-  await clickModalButton("Generate reflection");
+  await clickModalButton("Generate reading prompt");
 
   if (claudeRequests.length !== 1) {
     throw new Error("Claude provider must make one reflection request after the user clicks");
@@ -1292,6 +1303,17 @@ try {
 
   if (!claudeBody.includes("A compact memory excerpt with enough detail to display.")) {
     throw new Error("Claude request payload must include the current excerpt");
+  }
+
+  for (const requiredPromptText of [
+    "same primary language as the excerpt",
+    "warm lead-in",
+    "brief summary, reflection, encouragement, or gentle self-reflection question",
+    "interested in rereading the note"
+  ]) {
+    if (!claudeBody.includes(requiredPromptText)) {
+      throw new Error(`Claude prompt must guide warm same-language reading output: ${requiredPromptText}`);
+    }
   }
 
   if (!renderedModals[0]?.texts.includes("Claude reflection text.")) {
@@ -1350,7 +1372,7 @@ try {
     expectedExcerpt: "A cacheable memory excerpt with enough detail to display."
   });
 
-  await clickModalButton("Generate reflection");
+  await clickModalButton("Generate reading prompt");
 
   if (aiCacheRequests.length !== 1) {
     throw new Error("AI cache miss must make one network request");
@@ -1382,7 +1404,7 @@ try {
   await aiCacheHitPlugin.onload();
   aiCacheHitPlugin.commands.find((command) => command.id === "show-memory")?.callback();
   await flushPromises();
-  await clickModalButton("Generate reflection");
+  await clickModalButton("Generate reading prompt");
 
   if (aiCacheRequests.length !== 0) {
     throw new Error("AI cache hit for ${path}:${contentHash} must not make a network request");

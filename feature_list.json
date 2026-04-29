@@ -185,6 +185,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F024",
+      "description": "AI prompt asks providers to respond in the note excerpt language with a warm reading lead-in that may be summary, reflection, encouragement, or self-reflection.",
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
+      "last_error": ""
     }
   ]
 }

@@ -12,7 +12,7 @@ The default design favors privacy:
 
 - Journal discovery happens inside the local Obsidian vault.
 - AI is disabled by default.
-- No AI request is made unless the user enables AI and clicks `Generate reflection`.
+- No AI request is made unless the user enables AI and clicks `Generate reading prompt`.
 - AI requests send only the displayed excerpt, not the full note, path, vault name, tags, or display history.
 
 ## Design
@@ -22,7 +22,7 @@ The plugin has four main parts:
 - Discovery: finds Markdown notes tagged with configured journal tags.
 - Memory creation: derives title, date, excerpt, and content hash from an eligible note.
 - Display: shows a modal with the memory, `Open note`, `Next`, and `Close` controls.
-- Optional AI reflection: sends only the current excerpt to the selected provider after explicit user action.
+- Optional AI reading prompt: sends only the current excerpt to the selected provider after explicit user action.
 
 Display history is stored through Obsidian plugin data so the plugin can prefer notes that have not been shown recently.
 
@@ -82,7 +82,7 @@ The modal shows:
 - `Open note`
 - `Next`
 - `Close`
-- `Generate reflection` when AI is enabled
+- `Generate reading prompt` when AI is enabled
 
 ## Settings
 
@@ -91,11 +91,11 @@ Available plugin settings:
 - `Journal tags`: comma-separated tags used to identify journal notes.
 - `Show on startup`: whether to show a memory after Obsidian starts.
 - `Minimum days between startup shows`: startup display cooldown.
-- `Enable AI`: controls whether the AI reflection button appears.
+- `Enable AI`: controls whether the AI reading prompt button appears.
 - `AI provider`: `OpenAI` or `Claude`.
 - `OpenAI API key`: token used only when OpenAI is selected.
 - `Claude API key`: token used only when Claude is selected.
-- `Cache AI responses`: stores generated reflections by `${path}:${contentHash}`.
+- `Cache AI responses`: stores generated reading prompts by `${path}:${contentHash}`.
 
 Existing saved `apiKey` values from earlier versions are treated as `OpenAI API key`.
 
@@ -103,7 +103,7 @@ Existing saved `apiKey` values from earlier versions are treated as `OpenAI API 
 
 AI is optional and disabled by default.
 
-When enabled, the selected provider is called only after clicking `Generate reflection`. The request payload includes the visible excerpt and instructions for a short reflection. It excludes full note content, file paths, vault names, tags, and display history.
+When enabled, the selected provider is called only after clicking `Generate reading prompt`. The request payload includes the visible excerpt and instructions for a short warm reading lead-in in the excerpt's language. It excludes full note content, file paths, vault names, tags, and display history.
 
 Supported providers:
 

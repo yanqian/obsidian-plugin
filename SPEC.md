@@ -42,7 +42,7 @@ Implement the following in the first version:
 - Manual command to show a memory on demand.
 - Local display history.
 - Local AI response cache.
-- AI reflection generation, disabled by default and triggered only by user click.
+- AI reading prompt generation, disabled by default and triggered only by user click.
 - Error handling for every case listed in section 12.
 - Build script and verification steps for every scenario listed in section 14.
 
@@ -224,7 +224,7 @@ The memory modal must display:
 - Button: `Open note`.
 - Button: `Next`.
 - Button: `Close`.
-- Button: `Generate reflection`, only if AI is enabled.
+- Button: `Generate reading prompt`, only if AI is enabled.
 
 Button behavior:
 
@@ -232,11 +232,11 @@ Button behavior:
 - `Next` selects and displays another memory without closing the modal.
 - `Next` must not show the same `path` as the current memory if at least two eligible memories exist.
 - `Close` closes the modal.
-- `Generate reflection` runs the AI reflection flow in section 5.4.
+- `Generate reading prompt` runs the AI reading prompt flow in section 5.4.
 
-### 5.4 AI Reflection Flow
+### 5.4 AI Reading Prompt Flow
 
-Trigger: User clicks `Generate reflection`.
+Trigger: User clicks `Generate reading prompt`.
 
 Required behavior:
 
@@ -244,11 +244,11 @@ Required behavior:
 2. If `aiEnabled` is `true` and the selected provider API key is missing, show a missing-key notice.
 3. If `cacheAiResponses` is `true` and an AI cache entry exists for `${path}:${contentHash}`, show the cached reflection.
 4. If no cache entry exists, send only the current `excerpt` to the AI provider.
-5. Show the returned reflection in the modal.
-6. If `cacheAiResponses` is `true`, persist the returned reflection in `aiCache`.
-7. If the AI request fails, show a notice: `Could not generate reflection. Try again later.`
+5. Show the returned reading prompt in the modal.
+6. If `cacheAiResponses` is `true`, persist the returned reading prompt in `aiCache`.
+7. If the AI request fails, show a notice: `Could not generate a reading prompt. Try again later.`
 
-The AI reflection must be requested only after a user click. Do not generate reflections automatically on startup.
+The AI reading prompt must be requested only after a user click. Do not generate reading prompts automatically on startup.
 
 ## 6. Memory Selection Rules
 
@@ -314,7 +314,7 @@ Prompt requirements:
 
 The plugin must satisfy these rules:
 
-- Do not make any network request unless the user clicks `Generate reflection`.
+- Do not make any network request unless the user clicks `Generate reading prompt`.
 - Do not make any network request when `aiEnabled` is `false`.
 - Do not upload full note content.
 - Do not upload file paths.
@@ -335,7 +335,7 @@ Required:
 - Keep modal text compact.
 - Make the excerpt readable as plain text.
 - Keep buttons clearly labeled.
-- Show AI reflection below the excerpt after generation.
+- Show the AI reading prompt near the note content after generation.
 
 Forbidden:
 
@@ -375,7 +375,7 @@ The implementation is complete only when all criteria below are true:
 - `Next` does not repeat the same note when another eligible note exists.
 - Display history persists across plugin reloads.
 - AI is disabled by default.
-- No network request occurs before the user clicks `Generate reflection`.
+- No network request occurs before the user clicks `Generate reading prompt`.
 - No network request occurs while AI is disabled.
 - AI request payload excludes full note content, file paths, vault names, and display history.
 - AI cache is keyed by `${path}:${contentHash}`.
@@ -392,7 +392,7 @@ Verify these scenarios manually or with automated tests:
 5. Click `Next`; confirm the current note is not repeated when another eligible note exists.
 6. Reload the plugin; confirm display history persists.
 7. Disable startup display; reload the plugin; confirm no startup modal appears.
-8. Enable AI without the selected provider API key; click `Generate reflection`; confirm the missing-key notice appears.
+8. Enable AI without the selected provider API key; click `Generate reading prompt`; confirm the missing-key notice appears.
 9. Keep AI disabled; confirm no AI button appears.
 10. Inspect the AI request implementation; confirm only the excerpt is sent to the selected provider.
 
@@ -409,7 +409,7 @@ The settings UI must make the selected AI provider and API key fields feel linke
 - When `aiProvider` is `claude`, show only the Claude API key input.
 - Switching providers must refresh the settings UI immediately.
 - Hidden provider API keys must remain saved and must not be cleared automatically.
-- AI reflection generation must continue to validate only the selected provider's API key.
+- AI reading prompt generation must continue to validate only the selected provider's API key.
 
 ### 15.2 Debug Mode
 
@@ -432,5 +432,15 @@ The memory display should support richer note content:
 - Show a compact note preview by default for long notes.
 - Provide a `Show more` control that expands long notes to the full rendered content.
 - Provide a `Show less` control after expansion.
-- Preserve existing `Open note`, `Next`, `Close`, and AI reflection controls.
+- Preserve existing `Open note`, `Next`, `Close`, and AI reading prompt controls.
 - Keep the current modal approach for the first rich-rendering implementation; a dedicated Obsidian view may be considered later if the modal becomes insufficient.
+
+### 15.4 Warm AI Reading Prompt
+
+The AI-generated text should work as a warm reading prompt rather than only a generic English reflection:
+
+- The AI prompt must ask the provider to answer in the same primary language as the note excerpt.
+- The AI output may be a brief summary, reflection, encouragement, or gentle self-reflection question.
+- The AI output should act as a warm lead-in that makes the user interested in rereading the note.
+- The AI output must remain grounded in the excerpt and must not claim knowledge beyond it.
+- Existing privacy constraints still apply: send only the excerpt, not the full note, path, vault name, tags, or display history.
