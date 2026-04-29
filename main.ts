@@ -244,7 +244,8 @@ export default class GentleMemoriesPlugin extends Plugin {
       ));
   }
 
-  async showMemory(): Promise<boolean> {
+  async showMemory(options: { showNotice?: boolean } = {}): Promise<boolean> {
+    const showNotice = options.showNotice ?? true;
     const memory = await this.selectMemory();
 
     if (memory) {
@@ -260,7 +261,10 @@ export default class GentleMemoriesPlugin extends Plugin {
       return true;
     }
 
-    new Notice("No journal notes found for the configured tags.");
+    if (showNotice) {
+      new Notice("No journal notes found for the configured tags.");
+    }
+
     return false;
   }
 
@@ -303,7 +307,7 @@ export default class GentleMemoriesPlugin extends Plugin {
     }
 
     this.app.workspace.onLayoutReady(() => {
-      void this.showMemory().then((shown) => {
+      void this.showMemory({ showNotice: false }).then((shown) => {
         if (shown) {
           void this.recordStartupMemoryShown(Date.now());
         }

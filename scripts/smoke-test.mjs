@@ -430,6 +430,90 @@ layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
 openedFiles.length = 0;
+const unusableManualPlugin = new GentleMemoriesPlugin(createMockApp([
+  {
+    path: "Memories/2024-01-01 Empty Journal.md",
+    basename: "2024-01-01 Empty Journal",
+    date: "2024-01-01",
+    excerpt: ""
+  },
+  {
+    path: "Memories/2024-01-02 Comment Journal.md",
+    basename: "2024-01-02 Comment Journal",
+    date: "2024-01-02",
+    excerpt: "%% only an Obsidian comment %%"
+  }
+]));
+unusableManualPlugin.data = { settings: { showOnStartup: false } };
+await unusableManualPlugin.onload();
+unusableManualPlugin.commands.find((command) => command.id === "show-memory")?.callback();
+await flushPromises();
+
+if (renderedModals.length !== 0) {
+  throw new Error("Manual show memory command must not show tagged notes without usable excerpts");
+}
+
+if (!notices.includes("No journal notes found for the configured tags.")) {
+  throw new Error("Manual show memory command must show a notice when matching notes have no usable excerpt");
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
+const unusableStartupPlugin = new GentleMemoriesPlugin(createMockApp([
+  {
+    path: "Memories/2024-01-01 Empty Journal.md",
+    basename: "2024-01-01 Empty Journal",
+    date: "2024-01-01",
+    excerpt: ""
+  }
+]));
+unusableStartupPlugin.data = { settings: { showOnStartup: true } };
+await unusableStartupPlugin.onload();
+layoutCallbacks.forEach((callback) => callback());
+await flushPromises();
+
+if (renderedModals.length !== 0) {
+  throw new Error("Startup display must not show tagged notes without usable excerpts");
+}
+
+if (notices.length !== 0) {
+  throw new Error("Startup display must stay quiet when matching notes have no usable excerpt");
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
+const mixedUsabilityPlugin = new GentleMemoriesPlugin(createMockApp([
+  {
+    path: "Memories/2024-01-01 Empty Journal.md",
+    basename: "2024-01-01 Empty Journal",
+    date: "2024-01-01",
+    excerpt: ""
+  },
+  {
+    path: "Memories/2024-01-03 Usable Journal.md",
+    basename: "2024-01-03 Usable Journal",
+    date: "2024-01-03",
+    excerpt: "A usable memory excerpt should be selected instead of an empty tagged note."
+  }
+]));
+mixedUsabilityPlugin.data = { settings: { showOnStartup: false } };
+await mixedUsabilityPlugin.onload();
+mixedUsabilityPlugin.commands.find((command) => command.id === "show-memory")?.callback();
+await flushPromises();
+assertMemoryModal("Manual show memory command must skip unusable tagged notes when another memory is usable", {
+  expectedTitle: "2024-01-03 Usable Journal",
+  expectedDate: "2024-01-03",
+  expectedExcerpt: "A usable memory excerpt should be selected instead of an empty tagged note."
+});
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
 const twoMemoryPlugin = new GentleMemoriesPlugin(createMockApp([
   {
     path: "Memories/2024-03-15 Journal.md",

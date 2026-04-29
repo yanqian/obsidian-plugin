@@ -149,9 +149,9 @@
     {
       "id": "F019",
       "description": "Empty or unusable notes are not shown.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {

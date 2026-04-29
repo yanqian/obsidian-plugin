@@ -168,7 +168,9 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       this.settings.journalTags
     ));
   }
-  async showMemory() {
+  async showMemory(options = {}) {
+    var _a;
+    const showNotice = (_a = options.showNotice) != null ? _a : true;
     const memory = await this.selectMemory();
     if (memory) {
       new MemoryModal(
@@ -182,7 +184,9 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       await this.recordMemoryShown(memory, Date.now());
       return true;
     }
-    new import_obsidian.Notice("No journal notes found for the configured tags.");
+    if (showNotice) {
+      new import_obsidian.Notice("No journal notes found for the configured tags.");
+    }
     return false;
   }
   async selectMemory(excludedPath) {
@@ -214,7 +218,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       return;
     }
     this.app.workspace.onLayoutReady(() => {
-      void this.showMemory().then((shown) => {
+      void this.showMemory({ showNotice: false }).then((shown) => {
         if (shown) {
           void this.recordStartupMemoryShown(Date.now());
         }
