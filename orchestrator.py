@@ -251,10 +251,43 @@ def evaluator_result(fid: str, result: subprocess.CompletedProcess[str]) -> tupl
     return False, f"Evaluator did not emit required pass line: {pass_line}"
 
 
+def evaluate_feature(fid: str, dry_run: bool) -> bool:
+    print(f"\n== Evaluate: {fid} ==", flush=True)
+    evaluator = run_evaluator_agent(fid, dry_run)
+    if dry_run:
+        return True
+
+    if evaluator.returncode != 0:
+        print(f"EVAL_FAIL: {fid}: evaluator agent exited with code {evaluator.returncode}", flush=True)
+        return False
+
+    passed, reason = evaluator_result(fid, evaluator)
+    if passed:
+        print(f"Evaluator accepted {fid}.", flush=True)
+        return True
+
+    print(f"EVAL_FAIL: {fid}: {reason}", flush=True)
+    return False
+
+
+def feature_ids_for_eval(target: str) -> list[str]:
+    data = load_state()
+    if target == "all":
+        return [str(feature["id"]) for feature in features(data)]
+
+    feature_by_id(data, target)
+    return [target]
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run unattended feature development rounds.")
     parser.add_argument("--max-rounds", type=int, default=MAX_ROUNDS)
     parser.add_argument("--max-attempts", type=int, default=MAX_ATTEMPTS)
+    parser.add_argument(
+        "--eval-only",
+        metavar="FEATURE_ID|all",
+        help="Run Evaluator Agent against an existing feature or all features without coding, state updates, or commits.",
+    )
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
@@ -262,6 +295,11 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     startup_protocol()
+
+    if args.eval_only:
+        feature_ids = feature_ids_for_eval(args.eval_only)
+        results = [evaluate_feature(fid, args.dry_run) for fid in feature_ids]
+        return 0 if all(results) else 1
 
     for round_no in range(1, args.max_rounds + 1):
         data = load_state()
