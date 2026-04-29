@@ -390,4 +390,4 @@ Verify these scenarios manually or with automated tests:
 9. Keep AI disabled; confirm no AI button appears.
 10. Inspect the AI request implementation; confirm only the excerpt is sent.
 
-Follow repository execution rules in `Agent.md`. If a harness exists, update and run it as required by that file.
+Follow repository execution rules in `AGENTS.md`. If a harness exists, update and run it as required by that file.
