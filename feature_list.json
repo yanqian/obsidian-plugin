@@ -193,6 +193,30 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F025",
+      "description": "Rename the AI reading prompt button from Generate reading prompt to Memories while preserving the same behavior.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
+    },
+    {
+      "id": "F026",
+      "description": "Reduce the default long-note preview length so memories preserve more mystery before Show more.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
+    },
+    {
+      "id": "F027",
+      "description": "Automatically generate or load the AI lead-in when AI is enabled, while visually separating it from the original note content and preserving privacy constraints.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
     }
   ]
 }

@@ -444,3 +444,35 @@ The AI-generated text should work as a warm reading prompt rather than only a ge
 - The AI output should act as a warm lead-in that makes the user interested in rereading the note.
 - The AI output must remain grounded in the excerpt and must not claim knowledge beyond it.
 - Existing privacy constraints still apply: send only the excerpt, not the full note, path, vault name, tags, or display history.
+
+### 15.5 Memory Prompt Button Copy
+
+The AI reading prompt control should use simpler, more evocative copy:
+
+- Rename the visible `Generate reading prompt` button to `Memories`.
+- The button must still only appear when AI is enabled.
+- The renamed button must continue to trigger the same AI reading prompt behavior.
+- Tests and documentation should use the `Memories` label for this control.
+
+### 15.6 Shorter Mystery Preview
+
+The memory modal should preserve more mystery before the user expands the note:
+
+- Reduce the default rendered note preview length for long notes.
+- Long notes should show only a small opening preview by default.
+- Long notes must still provide `Show more` to expand to the full rendered note body.
+- Expanded long notes must still provide `Show less` to return to the compact preview.
+- The preview should remain useful enough to orient the user without revealing too much of the note.
+
+### 15.7 Automatic AI Lead-in
+
+When AI is enabled, the memory modal should generate or load the AI lead-in automatically:
+
+- This requirement supersedes earlier constraints that required clicking the AI button before any AI request.
+- If `aiEnabled` is `true` and the selected provider API key is configured, the modal should automatically load a cached AI reading prompt or request a new one after a memory is shown.
+- If `aiEnabled` is `false`, no AI request should occur.
+- If `aiEnabled` is `true` but the selected provider API key is missing, the modal should not make a network request and should not show repeated startup notices automatically.
+- Automatic AI requests must still send only the excerpt, not the full note, path, vault name, tags, or display history.
+- The AI-generated lead-in must be visually separated from the original note content.
+- The note content should remain clearly identifiable as the user's original note.
+- The `Memories` button may remain available as a manual retry or regeneration control when AI is enabled.
