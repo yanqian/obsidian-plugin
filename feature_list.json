@@ -289,6 +289,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F037",
+      "description": "Add a user-facing book-open ribbon icon that opens a memory using the existing manual memory display flow without requiring debug mode.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
     }
   ]
 }

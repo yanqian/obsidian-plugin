@@ -567,3 +567,15 @@ Address required ObsidianReviewBot feedback for the community plugin submission:
 - Use `new Setting(containerEl).setName(...).setHeading()` for the settings tab heading instead of creating an HTML heading element directly.
 - Update settings UI labels flagged by the bot to sentence case while preserving meaning and behavior.
 - Keep all existing privacy constraints and AI-disabled behavior unchanged.
+
+### 15.17 Ribbon Icon Memory Entry
+
+Add a user-facing Obsidian ribbon icon for opening a memory on demand:
+
+- Add a ribbon icon using the `book-open` icon.
+- The ribbon icon tooltip should use sentence case.
+- Clicking the ribbon icon must show a memory immediately.
+- The ribbon icon must use the same behavior as the existing `Gentle Memories: Show memory` command.
+- The ribbon icon must not require debug mode.
+- The ribbon icon must preserve existing memory selection, display history, AI, startup cooldown, and privacy behavior.
+- Keep debug mode as a developer and troubleshooting feature rather than the main user entry point.
