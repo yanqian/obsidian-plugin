@@ -517,7 +517,7 @@ var MemoryModal = class extends import_obsidian.Modal {
       void this.showNextMemory();
     })).addButton((button) => button.setButtonText("Close").onClick(() => this.close()));
     if (this.aiEnabled) {
-      buttons.addButton((button) => button.setButtonText("Generate reading prompt").onClick(() => {
+      buttons.addButton((button) => button.setButtonText("Memories").onClick(() => {
         void this.showReflection();
       }));
     }

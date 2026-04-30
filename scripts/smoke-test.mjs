@@ -454,12 +454,12 @@ function assertMemoryModal(message, {
     }
   }
 
-  if (expectAiButton && !buttons.includes("Generate reading prompt")) {
-    throw new Error("Shown memory must include the Generate reading prompt button when AI is enabled");
+  if (expectAiButton && !buttons.includes("Memories")) {
+    throw new Error("Shown memory must include the Memories button when AI is enabled");
   }
 
-  if (!expectAiButton && buttons.includes("Generate reading prompt")) {
-    throw new Error("Shown memory must omit the Generate reading prompt button when AI is disabled");
+  if (!expectAiButton && buttons.includes("Memories")) {
+    throw new Error("Shown memory must omit the Memories button when AI is disabled");
   }
 }
 
@@ -895,7 +895,7 @@ try {
     }
   });
 
-  await clickModalButton("Generate reading prompt");
+  await clickModalButton("Memories");
 
   const debugLogTextAfterAi = JSON.stringify(debugLogs);
 
@@ -907,7 +907,7 @@ try {
   renderedModals.length = 0;
   debugShowMemoryHandler();
   await flushPromises();
-  await clickModalButton("Generate reading prompt");
+  await clickModalButton("Memories");
 
   const debugLogTextAfterCacheHit = JSON.stringify(debugLogs);
 
@@ -1036,7 +1036,7 @@ try {
   await reflectionOrderPlugin.onload();
   reflectionOrderPlugin.commands.find((command) => command.id === "show-memory")?.callback();
   await flushPromises();
-  await clickModalButton("Generate reading prompt");
+  await clickModalButton("Memories");
 
   const renderedText = renderedModals[0].texts.join("\n");
   const reflectionIndex = renderedText.indexOf("Reflection shown before note body.");
@@ -1056,7 +1056,7 @@ openedFiles.length = 0;
 const preClickNetworkRequests = [];
 globalThis.fetch = async (...args) => {
   preClickNetworkRequests.push(args);
-  throw new Error("Network request occurred before Generate reading prompt was clicked");
+  throw new Error("Network request occurred before Memories was clicked");
 };
 
 try {
@@ -1076,7 +1076,7 @@ try {
   });
 
   if (preClickNetworkRequests.length !== 0) {
-    throw new Error("No network request may occur before the user clicks Generate reading prompt");
+    throw new Error("No network request may occur before the user clicks Memories");
   }
 } finally {
   globalThis.fetch = originalFetch;
@@ -1196,10 +1196,10 @@ try {
     expectedExcerpt: expectedAiExcerpt
   });
 
-  await clickModalButton("Generate reading prompt");
+  await clickModalButton("Memories");
 
   if (aiPrivacyRequests.length !== 1) {
-    throw new Error("Generate reading prompt must make exactly one request after the user clicks");
+    throw new Error("Memories must make exactly one request after the user clicks");
   }
 
   const [_url, requestInit] = aiPrivacyRequests[0];
@@ -1279,7 +1279,7 @@ try {
   await claudePlugin.onload();
   claudePlugin.commands.find((command) => command.id === "show-memory")?.callback();
   await flushPromises();
-  await clickModalButton("Generate reading prompt");
+  await clickModalButton("Memories");
 
   if (claudeRequests.length !== 1) {
     throw new Error("Claude provider must make one reflection request after the user clicks");
@@ -1372,7 +1372,7 @@ try {
     expectedExcerpt: "A cacheable memory excerpt with enough detail to display."
   });
 
-  await clickModalButton("Generate reading prompt");
+  await clickModalButton("Memories");
 
   if (aiCacheRequests.length !== 1) {
     throw new Error("AI cache miss must make one network request");
@@ -1404,7 +1404,7 @@ try {
   await aiCacheHitPlugin.onload();
   aiCacheHitPlugin.commands.find((command) => command.id === "show-memory")?.callback();
   await flushPromises();
-  await clickModalButton("Generate reading prompt");
+  await clickModalButton("Memories");
 
   if (aiCacheRequests.length !== 0) {
     throw new Error("AI cache hit for ${path}:${contentHash} must not make a network request");

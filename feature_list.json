@@ -197,9 +197,9 @@
     {
       "id": "F025",
       "description": "Rename the AI reading prompt button from Generate reading prompt to Memories while preserving the same behavior.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     },
     {

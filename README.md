@@ -12,7 +12,7 @@ The default design favors privacy:
 
 - Journal discovery happens inside the local Obsidian vault.
 - AI is disabled by default.
-- No AI request is made unless the user enables AI and clicks `Generate reading prompt`.
+- No AI request is made unless the user enables AI and clicks `Memories`.
 - AI requests send only the displayed excerpt, not the full note, path, vault name, tags, or display history.
 
 ## Design
@@ -82,7 +82,7 @@ The modal shows:
 - `Open note`
 - `Next`
 - `Close`
-- `Generate reading prompt` when AI is enabled
+- `Memories` when AI is enabled
 
 ## Settings
 
@@ -103,7 +103,7 @@ Existing saved `apiKey` values from earlier versions are treated as `OpenAI API 
 
 AI is optional and disabled by default.
 
-When enabled, the selected provider is called only after clicking `Generate reading prompt`. The request payload includes the visible excerpt and instructions for a short warm reading lead-in in the excerpt's language. It excludes full note content, file paths, vault names, tags, and display history.
+When enabled, the selected provider is called only after clicking `Memories`. The request payload includes the visible excerpt and instructions for a short warm reading lead-in in the excerpt's language. It excludes full note content, file paths, vault names, tags, and display history.
 
 Supported providers:
 

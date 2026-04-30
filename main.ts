@@ -699,7 +699,7 @@ class MemoryModal extends Modal {
 
     if (this.aiEnabled) {
       buttons.addButton((button) => button
-        .setButtonText("Generate reading prompt")
+        .setButtonText("Memories")
         .onClick(() => {
           void this.showReflection();
         }));

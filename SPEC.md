@@ -224,7 +224,7 @@ The memory modal must display:
 - Button: `Open note`.
 - Button: `Next`.
 - Button: `Close`.
-- Button: `Generate reading prompt`, only if AI is enabled.
+- Button: `Memories`, only if AI is enabled.
 
 Button behavior:
 
@@ -232,11 +232,11 @@ Button behavior:
 - `Next` selects and displays another memory without closing the modal.
 - `Next` must not show the same `path` as the current memory if at least two eligible memories exist.
 - `Close` closes the modal.
-- `Generate reading prompt` runs the AI reading prompt flow in section 5.4.
+- `Memories` runs the AI reading prompt flow in section 5.4.
 
 ### 5.4 AI Reading Prompt Flow
 
-Trigger: User clicks `Generate reading prompt`.
+Trigger: User clicks `Memories`.
 
 Required behavior:
 
@@ -314,7 +314,7 @@ Prompt requirements:
 
 The plugin must satisfy these rules:
 
-- Do not make any network request unless the user clicks `Generate reading prompt`.
+- Do not make any network request unless the user clicks `Memories`.
 - Do not make any network request when `aiEnabled` is `false`.
 - Do not upload full note content.
 - Do not upload file paths.
@@ -375,7 +375,7 @@ The implementation is complete only when all criteria below are true:
 - `Next` does not repeat the same note when another eligible note exists.
 - Display history persists across plugin reloads.
 - AI is disabled by default.
-- No network request occurs before the user clicks `Generate reading prompt`.
+- No network request occurs before the user clicks `Memories`.
 - No network request occurs while AI is disabled.
 - AI request payload excludes full note content, file paths, vault names, and display history.
 - AI cache is keyed by `${path}:${contentHash}`.
@@ -392,7 +392,7 @@ Verify these scenarios manually or with automated tests:
 5. Click `Next`; confirm the current note is not repeated when another eligible note exists.
 6. Reload the plugin; confirm display history persists.
 7. Disable startup display; reload the plugin; confirm no startup modal appears.
-8. Enable AI without the selected provider API key; click `Generate reading prompt`; confirm the missing-key notice appears.
+8. Enable AI without the selected provider API key; click `Memories`; confirm the missing-key notice appears.
 9. Keep AI disabled; confirm no AI button appears.
 10. Inspect the AI request implementation; confirm only the excerpt is sent to the selected provider.
 
