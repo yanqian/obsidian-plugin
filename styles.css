@@ -33,3 +33,37 @@
   max-height: 45vh;
   overflow: hidden;
 }
+
+.gentle-memories-buttons .setting-item {
+  border-top: 0;
+  display: block;
+  padding: 0;
+}
+
+.gentle-memories-buttons .setting-item-info {
+  display: none;
+}
+
+.gentle-memories-buttons .setting-item-control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.gentle-memories-buttons button {
+  flex: 0 1 auto;
+  max-width: 100%;
+  min-width: max-content;
+  white-space: normal;
+}
+
+@media (max-width: 480px) {
+  .gentle-memories-buttons .setting-item-control {
+    justify-content: flex-start;
+  }
+
+  .gentle-memories-buttons button {
+    flex: 1 1 calc(50% - 0.5rem);
+  }
+}
