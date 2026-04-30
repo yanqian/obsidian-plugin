@@ -368,7 +368,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     });
     try {
       const response = await this.requestReflection(memory.excerpt, apiKey);
-      if (!response.ok) {
+      if (response.status < 200 || response.status >= 300) {
         throw new Error(`AI request failed with ${response.status}`);
       }
       const reflection = await this.readReflection(response);
@@ -412,13 +412,15 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       "Do not include diagnosis, crisis instructions, or urgent medical guidance."
     ].join(" ");
     if (this.settings.aiProvider === "claude") {
-      return fetch(CLAUDE_REFLECTION_ENDPOINT, {
+      return (0, import_obsidian.requestUrl)({
+        url: CLAUDE_REFLECTION_ENDPOINT,
         method: "POST",
         headers: {
           "x-api-key": apiKey,
           "anthropic-version": "2023-06-01",
           "Content-Type": "application/json"
         },
+        throw: false,
         body: JSON.stringify({
           model: CLAUDE_REFLECTION_MODEL,
           max_tokens: 180,
@@ -432,12 +434,14 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
         })
       });
     }
-    return fetch(OPENAI_REFLECTION_ENDPOINT, {
+    return (0, import_obsidian.requestUrl)({
+      url: OPENAI_REFLECTION_ENDPOINT,
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
+      throw: false,
       body: JSON.stringify({
         model: OPENAI_REFLECTION_MODEL,
         messages: [
@@ -456,10 +460,10 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   async readReflection(response) {
     var _a, _b, _c, _d, _e, _f, _g;
     if (this.settings.aiProvider === "claude") {
-      const data2 = await response.json();
+      const data2 = response.json;
       return (_c = (_b = (_a = data2.content) == null ? void 0 : _a.find((content) => content.type === "text" && typeof content.text === "string")) == null ? void 0 : _b.text) == null ? void 0 : _c.trim();
     }
-    const data = await response.json();
+    const data = response.json;
     return (_g = (_f = (_e = (_d = data.choices) == null ? void 0 : _d[0]) == null ? void 0 : _e.message) == null ? void 0 : _f.content) == null ? void 0 : _g.trim();
   }
   debugLog(event, details) {
@@ -584,7 +588,7 @@ var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Gentle Memories" });
+    new import_obsidian.Setting(containerEl).setName("Gentle Memories").setHeading();
     new import_obsidian.Setting(containerEl).setName("Journal tags").setDesc("Comma-separated tags used to identify journal notes.").addText((text) => {
       text.setPlaceholder("journal, diary, note").setValue(this.plugin.settings.journalTags.join(", ")).onChange(async (value) => {
         this.plugin.settings.journalTags = normalizeJournalTags(value.split(","));

@@ -285,9 +285,9 @@
     {
       "id": "F036",
       "description": "Address ObsidianReviewBot required feedback by replacing fetch with requestUrl, using Setting.setHeading for the settings title, and converting flagged settings labels to sentence case.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     }
   ]

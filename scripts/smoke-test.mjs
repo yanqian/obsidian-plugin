@@ -56,6 +56,22 @@ if (!mainSource.includes("this.addCommand({")) {
   throw new Error("main.ts must register an Obsidian command");
 }
 
+if (!mainSource.includes("requestUrl")) {
+  throw new Error("main.ts must use Obsidian requestUrl for provider requests");
+}
+
+if (mainSource.includes("fetch(")) {
+  throw new Error("main.ts must not use global fetch for provider requests");
+}
+
+if (!mainSource.includes(".setHeading()")) {
+  throw new Error("settings tab heading must use Setting.setHeading()");
+}
+
+if (mainSource.includes('containerEl.createEl("h2", { text: "Gentle Memories" })')) {
+  throw new Error("settings tab must not create a heading element directly");
+}
+
 if (!mainSource.includes("id: SHOW_MEMORY_COMMAND_ID") || !mainSource.includes("name: SHOW_MEMORY_COMMAND_NAME")) {
   throw new Error("main.ts must register the Gentle Memories: Show memory command");
 }
@@ -313,6 +329,11 @@ class MockSetting {
     return this;
   }
 
+  setHeading() {
+    this.record.heading = true;
+    return this;
+  }
+
   addText(callback) {
     const text = new MockText();
     this.record.text = text;
@@ -420,6 +441,27 @@ Module._load = function loadWithObsidianMock(request, parent, isMain) {
       Notice: MockNotice,
       Plugin: MockPlugin,
       PluginSettingTab: MockPluginSettingTab,
+      async requestUrl(request) {
+        const url = typeof request === "string" ? request : request.url;
+        const init = typeof request === "string"
+          ? undefined
+          : {
+            method: request.method,
+            headers: request.headers,
+            body: request.body
+          };
+        const response = await globalThis.fetch(url, init);
+        const json = typeof response.json === "function" ? await response.json() : undefined;
+        const text = typeof response.text === "function" ? await response.text() : JSON.stringify(json ?? "");
+
+        return {
+          status: response.status ?? 200,
+          headers: response.headers ?? {},
+          arrayBuffer: new ArrayBuffer(0),
+          json,
+          text
+        };
+      },
       Setting: MockSetting
     };
   }

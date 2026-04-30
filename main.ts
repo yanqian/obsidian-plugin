@@ -1,4 +1,4 @@
-import { getAllTags, MarkdownRenderer, Modal, Notice, Plugin, PluginSettingTab, Setting, type CachedMetadata, type Component, type TFile } from "obsidian";
+import { getAllTags, MarkdownRenderer, Modal, Notice, Plugin, PluginSettingTab, requestUrl, Setting, type CachedMetadata, type Component, type RequestUrlResponse, type TFile } from "obsidian";
 
 interface PluginSettings {
   journalTags: string[];
@@ -505,7 +505,7 @@ export default class GentleMemoriesPlugin extends Plugin {
     try {
       const response = await this.requestReflection(memory.excerpt, apiKey);
 
-      if (!response.ok) {
+      if (response.status < 200 || response.status >= 300) {
         throw new Error(`AI request failed with ${response.status}`);
       }
 
@@ -547,7 +547,7 @@ export default class GentleMemoriesPlugin extends Plugin {
     return this.settings.aiProvider === "claude" ? "Claude" : "OpenAI";
   }
 
-  private async requestReflection(excerpt: string, apiKey: string): Promise<Response> {
+  private async requestReflection(excerpt: string, apiKey: string): Promise<RequestUrlResponse> {
     const systemPrompt = [
       "Write 1 to 3 short sentences in the same primary language as the excerpt.",
       "Create a warm lead-in that makes the user interested in rereading the note.",
@@ -559,13 +559,15 @@ export default class GentleMemoriesPlugin extends Plugin {
     ].join(" ");
 
     if (this.settings.aiProvider === "claude") {
-      return fetch(CLAUDE_REFLECTION_ENDPOINT, {
+      return requestUrl({
+        url: CLAUDE_REFLECTION_ENDPOINT,
         method: "POST",
         headers: {
           "x-api-key": apiKey,
           "anthropic-version": "2023-06-01",
           "Content-Type": "application/json"
         },
+        throw: false,
         body: JSON.stringify({
           model: CLAUDE_REFLECTION_MODEL,
           max_tokens: 180,
@@ -580,12 +582,14 @@ export default class GentleMemoriesPlugin extends Plugin {
       });
     }
 
-    return fetch(OPENAI_REFLECTION_ENDPOINT, {
+    return requestUrl({
+      url: OPENAI_REFLECTION_ENDPOINT,
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
+      throw: false,
       body: JSON.stringify({
         model: OPENAI_REFLECTION_MODEL,
         messages: [
@@ -602,16 +606,16 @@ export default class GentleMemoriesPlugin extends Plugin {
     });
   }
 
-  private async readReflection(response: Response): Promise<string | undefined> {
+  private async readReflection(response: RequestUrlResponse): Promise<string | undefined> {
     if (this.settings.aiProvider === "claude") {
-      const data = await response.json() as ClaudeReflectionResponse;
+      const data = response.json as ClaudeReflectionResponse;
       return data.content
         ?.find((content) => content.type === "text" && typeof content.text === "string")
         ?.text
         ?.trim();
     }
 
-    const data = await response.json() as AiReflectionResponse;
+    const data = response.json as AiReflectionResponse;
     return data.choices?.[0]?.message?.content?.trim();
   }
 
@@ -783,7 +787,10 @@ class GentleMemoriesSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Gentle Memories" });
+
+    new Setting(containerEl)
+      .setName("Gentle Memories")
+      .setHeading();
 
     new Setting(containerEl)
       .setName("Journal tags")
