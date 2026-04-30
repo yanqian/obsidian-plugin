@@ -45,6 +45,7 @@ Required files:
 ```text
 manifest.json
 main.js
+styles.css
 ```
 
 Then enable `Gentle Memories` in Obsidian community plugin settings.
@@ -106,6 +107,8 @@ AI is optional and disabled by default.
 When enabled with the selected provider API key configured, the modal automatically loads a cached reading prompt or requests a new one after a memory is shown. The request payload includes the visible excerpt and instructions for a short warm reading lead-in in the excerpt's language. It excludes full note content, file paths, vault names, tags, and display history.
 
 If AI is enabled but the selected provider API key is missing, the modal still shows the `Memories` button for manual retry, but it does not make an automatic request or show repeated automatic missing-key notices.
+
+The generated lead-in is styled separately with Obsidian theme-aware colors so it is visually distinct from the original note content.
 
 Supported providers:
 

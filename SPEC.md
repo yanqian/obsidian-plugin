@@ -476,3 +476,14 @@ When AI is enabled, the memory modal should generate or load the AI lead-in auto
 - The AI-generated lead-in must be visually separated from the original note content.
 - The note content should remain clearly identifiable as the user's original note.
 - The `Memories` button may remain available as a manual retry or regeneration control when AI is enabled.
+
+### 15.8 Theme-aware AI Lead-in Styling
+
+The AI-generated lead-in should be visually distinct from the user's original note without feeling heavy:
+
+- Style the `gentle-memories-ai-lead-in` section with a subtle theme-aware background.
+- Use Obsidian CSS variables instead of fixed brand colors.
+- Use a small accent border or similar lightweight treatment to distinguish AI content.
+- Keep the original note content in normal Obsidian reading style.
+- The styling must work in light and dark themes.
+- Local installation documentation must mention any required style file.

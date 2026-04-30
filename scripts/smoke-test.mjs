@@ -2,7 +2,7 @@ import fs from "fs";
 import Module, { createRequire } from "module";
 
 const port = Number.parseInt(process.env.SMOKE_PORT ?? "4173", 10);
-const requiredFiles = ["manifest.json", "main.ts", "main.js", "feature_list.json", "progress.md"];
+const requiredFiles = ["manifest.json", "main.ts", "main.js", "styles.css", "feature_list.json", "progress.md"];
 
 for (const file of requiredFiles) {
   if (!fs.existsSync(file)) {
@@ -12,6 +12,7 @@ for (const file of requiredFiles) {
 
 const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
 const mainSource = fs.readFileSync("main.ts", "utf8");
+const stylesSource = fs.readFileSync("styles.css", "utf8");
 const require = createRequire(import.meta.url);
 const requiredManifestStrings = ["id", "name", "version", "minAppVersion", "description", "author"];
 
@@ -27,6 +28,17 @@ if (!/^[a-z0-9-]+$/.test(manifest.id)) {
 
 if (manifest.isDesktopOnly !== undefined && typeof manifest.isDesktopOnly !== "boolean") {
   throw new Error("manifest.json isDesktopOnly must be a boolean when present");
+}
+
+for (const styleSnippet of [
+  ".gentle-memories-ai-lead-in",
+  "var(--background-secondary)",
+  "var(--interactive-accent)",
+  ".gentle-memories-original-note-heading"
+]) {
+  if (!stylesSource.includes(styleSnippet)) {
+    throw new Error(`styles.css must visually separate the AI lead-in with theme-aware styling: missing ${styleSnippet}`);
+  }
 }
 
 if (!mainSource.includes('const SHOW_MEMORY_COMMAND_ID = "show-memory";')) {

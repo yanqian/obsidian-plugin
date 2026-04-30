@@ -217,6 +217,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F028",
+      "description": "Style the AI lead-in section with theme-aware visual separation from original note content.",
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
+      "last_error": ""
     }
   ]
 }
