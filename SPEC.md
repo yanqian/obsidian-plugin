@@ -537,3 +537,13 @@ Keep public marketplace descriptions compatible with the Obsidian community plug
 - The repository `manifest.json` description must exactly match the marketplace description.
 - The README release submission example should use the same description.
 - The description must remain short, user-facing, and end with terminal punctuation.
+
+### 15.14 Cross-platform Build Verification
+
+Add repository CI that can support marketplace review notes when Windows or Linux GUI testing is not available:
+
+- Add a GitHub Actions workflow that runs on pushes to `main` and pull requests.
+- Verify the plugin build on `ubuntu-latest`, `windows-latest`, and `macos-latest`.
+- Use Node.js 20 with npm dependency caching.
+- Run `npm ci` followed by `npm run build`.
+- Keep this as build compatibility verification, not a claim of manual GUI testing on every OS.

@@ -265,6 +265,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F034",
+      "description": "Add cross-platform GitHub Actions build verification for Ubuntu, Windows, and macOS using npm ci and npm run build.",
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
+      "last_error": ""
     }
   ]
 }
