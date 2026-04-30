@@ -79,7 +79,7 @@ const DEFAULT_DISPLAY_HISTORY: DisplayHistory = {
 
 const SHOW_MEMORY_COMMAND_ID = "show-memory";
 const SHOW_MEMORY_COMMAND_NAME = "Show memory";
-const SHOW_MEMORY_RIBBON_ICON = "book-open";
+const SHOW_MEMORY_RIBBON_ICON = "sparkles";
 const SHOW_MEMORY_RIBBON_TOOLTIP = "Show memory";
 const OPENAI_REFLECTION_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 const OPENAI_REFLECTION_MODEL = "gpt-4o-mini";

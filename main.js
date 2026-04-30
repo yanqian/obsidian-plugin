@@ -43,7 +43,7 @@ var DEFAULT_DISPLAY_HISTORY = {
 };
 var SHOW_MEMORY_COMMAND_ID = "show-memory";
 var SHOW_MEMORY_COMMAND_NAME = "Show memory";
-var SHOW_MEMORY_RIBBON_ICON = "book-open";
+var SHOW_MEMORY_RIBBON_ICON = "sparkles";
 var SHOW_MEMORY_RIBBON_TOOLTIP = "Show memory";
 var OPENAI_REFLECTION_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 var OPENAI_REFLECTION_MODEL = "gpt-4o-mini";

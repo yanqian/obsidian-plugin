@@ -301,9 +301,9 @@
     {
       "id": "F038",
       "description": "Change the user-facing memory ribbon icon from book-open to sparkles while preserving tooltip and manual memory display behavior.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     }
   ]

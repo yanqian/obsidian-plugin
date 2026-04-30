@@ -56,8 +56,8 @@ if (!mainSource.includes("this.addCommand({")) {
   throw new Error("main.ts must register an Obsidian command");
 }
 
-if (!mainSource.includes('const SHOW_MEMORY_RIBBON_ICON = "book-open";')) {
-  throw new Error("main.ts must define the book-open ribbon icon");
+if (!mainSource.includes('const SHOW_MEMORY_RIBBON_ICON = "sparkles";')) {
+  throw new Error("main.ts must define the sparkles ribbon icon");
 }
 
 if (!mainSource.includes('const SHOW_MEMORY_RIBBON_TOOLTIP = "Show memory";')) {
@@ -600,10 +600,10 @@ if (!disabledStartupShowMemoryCommand) {
   throw new Error("Manual show memory command must be registered");
 }
 
-const showMemoryRibbonIcon = disabledStartupPlugin.ribbonIcons.find((ribbonIcon) => ribbonIcon.icon === "book-open");
+const showMemoryRibbonIcon = disabledStartupPlugin.ribbonIcons.find((ribbonIcon) => ribbonIcon.icon === "sparkles");
 
 if (!showMemoryRibbonIcon) {
-  throw new Error("Show memory ribbon icon must be registered with the book-open icon");
+  throw new Error("Show memory ribbon icon must be registered with the sparkles icon");
 }
 
 if (showMemoryRibbonIcon.title !== "Show memory") {
