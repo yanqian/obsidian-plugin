@@ -43,6 +43,8 @@ var DEFAULT_DISPLAY_HISTORY = {
 };
 var SHOW_MEMORY_COMMAND_ID = "show-memory";
 var SHOW_MEMORY_COMMAND_NAME = "Show memory";
+var SHOW_MEMORY_RIBBON_ICON = "book-open";
+var SHOW_MEMORY_RIBBON_TOOLTIP = "Show memory";
 var OPENAI_REFLECTION_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 var OPENAI_REFLECTION_MODEL = "gpt-4o-mini";
 var CLAUDE_REFLECTION_ENDPOINT = "https://api.anthropic.com/v1/messages";
@@ -188,6 +190,9 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       callback: () => {
         this.showManualMemory();
       }
+    });
+    this.addRibbonIcon(SHOW_MEMORY_RIBBON_ICON, SHOW_MEMORY_RIBBON_TOOLTIP, () => {
+      this.showManualMemory();
     });
     this.addSettingTab(new GentleMemoriesSettingTab(this));
     this.queueStartupMemoryDisplay();

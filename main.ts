@@ -79,6 +79,8 @@ const DEFAULT_DISPLAY_HISTORY: DisplayHistory = {
 
 const SHOW_MEMORY_COMMAND_ID = "show-memory";
 const SHOW_MEMORY_COMMAND_NAME = "Show memory";
+const SHOW_MEMORY_RIBBON_ICON = "book-open";
+const SHOW_MEMORY_RIBBON_TOOLTIP = "Show memory";
 const OPENAI_REFLECTION_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 const OPENAI_REFLECTION_MODEL = "gpt-4o-mini";
 const CLAUDE_REFLECTION_ENDPOINT = "https://api.anthropic.com/v1/messages";
@@ -282,6 +284,9 @@ export default class GentleMemoriesPlugin extends Plugin {
       callback: () => {
         this.showManualMemory();
       }
+    });
+    this.addRibbonIcon(SHOW_MEMORY_RIBBON_ICON, SHOW_MEMORY_RIBBON_TOOLTIP, () => {
+      this.showManualMemory();
     });
 
     this.addSettingTab(new GentleMemoriesSettingTab(this));

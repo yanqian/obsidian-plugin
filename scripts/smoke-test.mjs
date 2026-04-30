@@ -56,6 +56,18 @@ if (!mainSource.includes("this.addCommand({")) {
   throw new Error("main.ts must register an Obsidian command");
 }
 
+if (!mainSource.includes('const SHOW_MEMORY_RIBBON_ICON = "book-open";')) {
+  throw new Error("main.ts must define the book-open ribbon icon");
+}
+
+if (!mainSource.includes('const SHOW_MEMORY_RIBBON_TOOLTIP = "Show memory";')) {
+  throw new Error("main.ts must define a sentence-case ribbon tooltip");
+}
+
+if (!mainSource.includes("this.addRibbonIcon(SHOW_MEMORY_RIBBON_ICON, SHOW_MEMORY_RIBBON_TOOLTIP")) {
+  throw new Error("main.ts must register the Show memory ribbon icon");
+}
+
 if (!mainSource.includes("requestUrl")) {
   throw new Error("main.ts must use Obsidian requestUrl for provider requests");
 }
@@ -205,12 +217,17 @@ class MockPlugin {
   constructor(app) {
     this.app = app;
     this.commands = [];
+    this.ribbonIcons = [];
     this.settingTabs = [];
     this.data = undefined;
   }
 
   addCommand(command) {
     this.commands.push(command);
+  }
+
+  addRibbonIcon(icon, title, callback) {
+    this.ribbonIcons.push({ icon, title, callback });
   }
 
   addSettingTab(settingTab) {
@@ -583,6 +600,20 @@ if (!disabledStartupShowMemoryCommand) {
   throw new Error("Manual show memory command must be registered");
 }
 
+const showMemoryRibbonIcon = disabledStartupPlugin.ribbonIcons.find((ribbonIcon) => ribbonIcon.icon === "book-open");
+
+if (!showMemoryRibbonIcon) {
+  throw new Error("Show memory ribbon icon must be registered with the book-open icon");
+}
+
+if (showMemoryRibbonIcon.title !== "Show memory") {
+  throw new Error("Show memory ribbon icon tooltip must use sentence case");
+}
+
+if (typeof showMemoryRibbonIcon.callback !== "function") {
+  throw new Error("Show memory ribbon icon must have a click handler");
+}
+
 disabledStartupShowMemoryCommand.callback();
 await flushPromises();
 
@@ -604,6 +635,22 @@ if (openedFiles.length !== 1 || openedFiles[0]?.path !== "Memories/2024-03-15 Jo
 
 if (layoutCallbacks.length !== 0) {
   throw new Error("Manual show memory command must not depend on startup layout scheduling");
+}
+
+renderedModals.length = 0;
+openedFiles.length = 0;
+notices.length = 0;
+showMemoryRibbonIcon.callback();
+await flushPromises();
+
+if (notices.length !== 0) {
+  throw new Error("Show memory ribbon icon must display a memory instead of a notice when notes are available");
+}
+
+assertMemoryModal("Show memory ribbon icon must use the existing manual memory display flow");
+
+if (layoutCallbacks.length !== 0) {
+  throw new Error("Show memory ribbon icon must not depend on startup layout scheduling");
 }
 
 layoutCallbacks = [];
