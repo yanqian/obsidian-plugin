@@ -528,3 +528,12 @@ Use the public author display name consistently across release-facing files:
 - Update README community plugin submission examples to use `Armstrong Yan`.
 - Update license copyright holder text to `Armstrong Yan`.
 - Keep repository ownership and URLs unchanged unless explicitly requested.
+
+### 15.13 Marketplace Description Compliance
+
+Keep public marketplace descriptions compatible with the Obsidian community plugin validation rules:
+
+- The `community-plugins.json` description must not include the word `Obsidian`.
+- The repository `manifest.json` description must exactly match the marketplace description.
+- The README release submission example should use the same description.
+- The description must remain short, user-facing, and end with terminal punctuation.

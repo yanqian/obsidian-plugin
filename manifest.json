@@ -3,7 +3,7 @@
   "name": "Gentle Memories",
   "version": "1.0.0",
   "minAppVersion": "1.5.0",
-  "description": "Rediscover old journal notes inside the current Obsidian vault.",
+  "description": "Rediscover old journal notes inside the current vault.",
   "author": "Armstrong Yan",
   "authorUrl": "https://github.com/yanqian",
   "isDesktopOnly": false

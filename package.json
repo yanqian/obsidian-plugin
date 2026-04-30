@@ -1,7 +1,7 @@
 {
   "name": "gentle-memories",
   "version": "1.0.0",
-  "description": "Rediscover old journal notes inside the current Obsidian vault.",
+  "description": "Rediscover old journal notes inside the current vault.",
   "main": "main.js",
   "scripts": {
     "build": "tsc --noEmit && node esbuild.config.mjs production",

@@ -257,6 +257,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F033",
+      "description": "Update marketplace-facing descriptions to satisfy Obsidian community plugin validation while keeping manifest and submission metadata consistent.",
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
+      "last_error": ""
     }
   ]
 }
