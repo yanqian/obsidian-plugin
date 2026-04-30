@@ -579,3 +579,12 @@ Add a user-facing Obsidian ribbon icon for opening a memory on demand:
 - The ribbon icon must not require debug mode.
 - The ribbon icon must preserve existing memory selection, display history, AI, startup cooldown, and privacy behavior.
 - Keep debug mode as a developer and troubleshooting feature rather than the main user entry point.
+
+### 15.18 Ribbon Icon Sparkles Update
+
+Update the user-facing memory ribbon icon to reduce confusion with document outline icons:
+
+- Change the memory ribbon icon from `book-open` to `sparkles`.
+- Keep the ribbon tooltip as sentence-case `Show memory`.
+- Preserve the existing ribbon click behavior and manual memory display flow.
+- Do not change command palette behavior, debug mode behavior, memory selection, display history, AI, startup cooldown, or privacy behavior.
