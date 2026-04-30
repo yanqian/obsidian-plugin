@@ -507,3 +507,15 @@ Automatic AI lead-in generation should not make the modal feel blocked:
 - Replace the loading state with the generated or cached lead-in when available.
 - If the user advances to another memory, stale AI results from the previous memory must not overwrite the new modal content.
 - If AI is disabled or the selected provider key is missing, no loading state should appear.
+
+### 15.11 Release Readiness
+
+Prepare the repository for an initial Obsidian community plugin submission:
+
+- Set the public plugin version to `1.0.0` in `manifest.json`, `package.json`, and `package-lock.json`.
+- Add `versions.json` with the minimum compatible Obsidian version for `1.0.0`.
+- Add a root `LICENSE` file.
+- Ensure the manifest has publishable author metadata and repository-aligned description.
+- Update README installation, privacy, and release instructions for public users.
+- Ignore local environment files that may contain secrets.
+- Keep the repository buildable and runnable through `./init.sh`.

@@ -241,6 +241,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F031",
+      "description": "Prepare the repository for initial Obsidian community plugin release readiness with public metadata, license, versions mapping, README release notes, and secret-safe ignores.",
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
+      "last_error": ""
     }
   ]
 }

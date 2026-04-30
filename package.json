@@ -1,7 +1,7 @@
 {
   "name": "gentle-memories",
-  "version": "0.0.0",
-  "description": "Gentle Memories Obsidian plugin scaffold.",
+  "version": "1.0.0",
+  "description": "Rediscover old journal notes inside the current Obsidian vault.",
   "main": "main.js",
   "scripts": {
     "build": "tsc --noEmit && node esbuild.config.mjs production",
@@ -14,7 +14,7 @@
     "obsidian",
     "plugin"
   ],
-  "author": "",
+  "author": "Yan Qian",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.12.12",

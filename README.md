@@ -28,6 +28,17 @@ Display history is stored through Obsidian plugin data so the plugin can prefer 
 
 ## Installation
 
+### From Obsidian Community Plugins
+
+After the plugin is accepted into the Obsidian community plugin directory:
+
+1. Open **Settings -> Community plugins** in Obsidian.
+2. Turn off Restricted mode if needed.
+3. Select **Browse** and search for **Gentle Memories**.
+4. Select **Install**, then **Enable**.
+
+### Manual installation
+
 Build the plugin from the repository root:
 
 ```bash
@@ -49,6 +60,17 @@ styles.css
 ```
 
 Then enable `Gentle Memories` in Obsidian community plugin settings.
+
+## Privacy
+
+Gentle Memories is designed to work locally by default. It does not create an account, run a backend service, or send note data anywhere unless AI is explicitly enabled.
+
+When AI is enabled and the selected provider API key is configured:
+
+- Only the displayed excerpt is sent to the selected AI provider.
+- Full note content, file paths, vault names, tags, display history, and cached history text are not sent.
+- API keys are stored in Obsidian plugin data on the user's device through Obsidian's normal plugin settings storage.
+- Debug logging avoids API keys, full note content, vault names, and AI request secrets.
 
 ## Usage
 
@@ -142,3 +164,23 @@ python3 orchestrator.py
 ```
 
 See [docs/orchestrator.md](docs/orchestrator.md) for the coding/evaluator flow.
+
+## Release
+
+For an Obsidian community plugin release:
+
+1. Confirm `manifest.json`, `package.json`, and `versions.json` use the same plugin version.
+2. Run `./init.sh`.
+3. Create a GitHub release whose tag exactly matches the plugin version, for example `1.0.0`.
+4. Upload `manifest.json`, `main.js`, and `styles.css` as release assets.
+5. Submit a pull request to `obsidianmd/obsidian-releases` that appends this entry to `community-plugins.json`:
+
+```json
+{
+  "id": "gentle-memories",
+  "name": "Gentle Memories",
+  "author": "Yan Qian",
+  "description": "Rediscover old journal notes inside the current Obsidian vault.",
+  "repo": "yanqian/obsidian-plugin"
+}
+```
