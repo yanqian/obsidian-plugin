@@ -14,7 +14,7 @@
     "obsidian",
     "plugin"
   ],
-  "author": "Yan Qian",
+  "author": "Armstrong Yan",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.12.12",

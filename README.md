@@ -179,7 +179,7 @@ For an Obsidian community plugin release:
 {
   "id": "gentle-memories",
   "name": "Gentle Memories",
-  "author": "Yan Qian",
+  "author": "Armstrong Yan",
   "description": "Rediscover old journal notes inside the current Obsidian vault.",
   "repo": "yanqian/obsidian-plugin"
 }

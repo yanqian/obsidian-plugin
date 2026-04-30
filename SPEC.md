@@ -519,3 +519,12 @@ Prepare the repository for an initial Obsidian community plugin submission:
 - Update README installation, privacy, and release instructions for public users.
 - Ignore local environment files that may contain secrets.
 - Keep the repository buildable and runnable through `./init.sh`.
+
+### 15.12 Public Author Metadata
+
+Use the public author display name consistently across release-facing files:
+
+- Set plugin author metadata to `Armstrong Yan`.
+- Update README community plugin submission examples to use `Armstrong Yan`.
+- Update license copyright holder text to `Armstrong Yan`.
+- Keep repository ownership and URLs unchanged unless explicitly requested.

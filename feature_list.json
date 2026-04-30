@@ -249,6 +249,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F032",
+      "description": "Use Armstrong Yan consistently as the public author display name across release-facing metadata and documentation.",
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
+      "last_error": ""
     }
   ]
 }

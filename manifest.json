@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "minAppVersion": "1.5.0",
   "description": "Rediscover old journal notes inside the current Obsidian vault.",
-  "author": "Yan Qian",
+  "author": "Armstrong Yan",
   "authorUrl": "https://github.com/yanqian",
   "isDesktopOnly": false
 }
