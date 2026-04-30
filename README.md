@@ -12,7 +12,7 @@ The default design favors privacy:
 
 - Journal discovery happens inside the local Obsidian vault.
 - AI is disabled by default.
-- No AI request is made unless the user enables AI and clicks `Memories`.
+- No AI request is made unless the user enables AI and configures the selected provider API key.
 - AI requests send only the displayed excerpt, not the full note, path, vault name, tags, or display history.
 
 ## Design
@@ -22,7 +22,7 @@ The plugin has four main parts:
 - Discovery: finds Markdown notes tagged with configured journal tags.
 - Memory creation: derives title, date, excerpt, and content hash from an eligible note.
 - Display: shows a modal with the memory, `Open note`, `Next`, and `Close` controls.
-- Optional AI reading prompt: sends only the current excerpt to the selected provider after explicit user action.
+- Optional AI reading prompt: sends only the current excerpt to the selected provider when AI is enabled and keyed, then displays the lead-in separately from the original note.
 
 Display history is stored through Obsidian plugin data so the plugin can prefer notes that have not been shown recently.
 
@@ -103,7 +103,9 @@ Existing saved `apiKey` values from earlier versions are treated as `OpenAI API 
 
 AI is optional and disabled by default.
 
-When enabled, the selected provider is called only after clicking `Memories`. The request payload includes the visible excerpt and instructions for a short warm reading lead-in in the excerpt's language. It excludes full note content, file paths, vault names, tags, and display history.
+When enabled with the selected provider API key configured, the modal automatically loads a cached reading prompt or requests a new one after a memory is shown. The request payload includes the visible excerpt and instructions for a short warm reading lead-in in the excerpt's language. It excludes full note content, file paths, vault names, tags, and display history.
+
+If AI is enabled but the selected provider API key is missing, the modal still shows the `Memories` button for manual retry, but it does not make an automatic request or show repeated automatic missing-key notices.
 
 Supported providers:
 

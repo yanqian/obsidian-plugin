@@ -314,6 +314,7 @@ export default class GentleMemoriesPlugin extends Plugin {
         this,
         memory,
         this.settings.aiEnabled,
+        Boolean(this.getSelectedApiKey()),
         (currentPath) => this.selectMemory(currentPath),
         (shownMemory) => this.recordMemoryShown(shownMemory, Date.now()),
         (reflectionMemory) => this.generateReflection(reflectionMemory)
@@ -629,6 +630,7 @@ class MemoryModal extends Modal {
     private readonly parentComponent: Component,
     private memory: MemoryEntry,
     private readonly aiEnabled: boolean,
+    private readonly aiCanAutoLoad: boolean,
     private readonly selectNextMemory: (currentPath: string) => Promise<MemoryEntry | null>,
     private readonly recordMemoryShown: (memory: MemoryEntry) => Promise<void>,
     private readonly generateReflection: (memory: MemoryEntry) => Promise<string | null>
@@ -637,6 +639,7 @@ class MemoryModal extends Modal {
   }
 
   private reflectionText: string | undefined;
+  private automaticReflectionPath: string | undefined;
   private expanded = false;
 
   onOpen(): void {
@@ -652,12 +655,17 @@ class MemoryModal extends Modal {
     }
 
     if (this.reflectionText) {
-      contentEl.createEl("p", {
-        cls: "gentle-memories-reflection",
+      const reflectionEl = contentEl.createDiv({ cls: "gentle-memories-ai-lead-in" });
+      reflectionEl.createEl("h3", { text: "Memory lead-in" });
+      reflectionEl.createEl("p", {
         text: this.reflectionText
       });
     }
 
+    contentEl.createEl("h3", {
+      cls: "gentle-memories-original-note-heading",
+      text: "Original note"
+    });
     const noteContentEl = contentEl.createDiv({ cls: "gentle-memories-note-content" });
     const renderedMarkdown = this.expanded
       ? this.memory.markdownBody
@@ -704,6 +712,8 @@ class MemoryModal extends Modal {
           void this.showReflection();
         }));
     }
+
+    this.startAutomaticReflectionLoad();
   }
 
   private async openSourceNote(): Promise<void> {
@@ -717,6 +727,7 @@ class MemoryModal extends Modal {
     if (nextMemory) {
       this.memory = nextMemory;
       this.reflectionText = undefined;
+      this.automaticReflectionPath = undefined;
       this.expanded = false;
       this.onOpen();
       await this.recordMemoryShown(nextMemory);
@@ -730,6 +741,19 @@ class MemoryModal extends Modal {
       this.reflectionText = reflection;
       this.onOpen();
     }
+  }
+
+  private startAutomaticReflectionLoad(): void {
+    if (!this.aiEnabled || !this.aiCanAutoLoad || this.reflectionText) {
+      return;
+    }
+
+    if (this.automaticReflectionPath === this.memory.path) {
+      return;
+    }
+
+    this.automaticReflectionPath = this.memory.path;
+    void this.showReflection();
   }
 }
 

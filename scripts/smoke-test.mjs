@@ -121,6 +121,7 @@ class MockElement {
     this.buttons = [];
     this.buttonHandlers = new Map();
     this.settings = [];
+    this.classes = [];
   }
 
   empty() {
@@ -128,6 +129,7 @@ class MockElement {
     this.buttons.length = 0;
     this.buttonHandlers.clear();
     this.settings.length = 0;
+    this.classes.length = 0;
   }
 
   createEl(_tagName, options = {}) {
@@ -135,10 +137,18 @@ class MockElement {
       this.texts.push(options.text);
     }
 
+    if (typeof options.cls === "string") {
+      this.classes.push(options.cls);
+    }
+
     return new MockElement();
   }
 
-  createDiv() {
+  createDiv(options = {}) {
+    if (typeof options.cls === "string") {
+      this.classes.push(options.cls);
+    }
+
     return this;
   }
 }
@@ -857,30 +867,6 @@ try {
     throw new Error("Debug show-memory control must have a click handler");
   }
 
-  debugShowMemoryHandler();
-  await flushPromises();
-
-  assertMemoryModal("Debug show-memory control must show a memory immediately", {
-    expectAiButton: true,
-    expectedTitle: "2024-08-01 Journal",
-    expectedDate: "2024-08-01",
-    expectedExcerpt: "A debug-safe memory excerpt with enough detail to display."
-  });
-
-  const debugLogTextBeforeAi = JSON.stringify(debugLogs);
-
-  for (const requiredText of [
-    "journal-note-discovery",
-    "candidateNoteCount",
-    "memory-filter-outcomes",
-    "memory-selection",
-    "Logs/2024-08-01 Journal.md"
-  ]) {
-    if (!debugLogTextBeforeAi.includes(requiredText)) {
-      throw new Error(`Debug logging must include ${requiredText}`);
-    }
-  }
-
   globalThis.fetch = async () => ({
     ok: true,
     status: 200,
@@ -895,24 +881,43 @@ try {
     }
   });
 
-  await clickModalButton("Memories");
+  debugShowMemoryHandler();
+  await flushPromises();
+
+  assertMemoryModal("Debug show-memory control must show a memory immediately", {
+    expectAiButton: true,
+    expectedTitle: "2024-08-01 Journal",
+    expectedDate: "2024-08-01",
+    expectedExcerpt: "A debug-safe memory excerpt with enough detail to display."
+  });
 
   const debugLogTextAfterAi = JSON.stringify(debugLogs);
 
+  for (const requiredText of [
+    "journal-note-discovery",
+    "candidateNoteCount",
+    "memory-filter-outcomes",
+    "memory-selection",
+    "Logs/2024-08-01 Journal.md"
+  ]) {
+    if (!debugLogTextAfterAi.includes(requiredText)) {
+      throw new Error(`Debug logging must include ${requiredText}`);
+    }
+  }
+
   if (!debugLogTextAfterAi.includes("ai-cache") || !debugLogTextAfterAi.includes("miss")) {
-    throw new Error("Debug logging must include AI cache misses");
+    throw new Error("Debug logging must include automatic AI cache misses");
   }
 
   debugLogs.length = 0;
   renderedModals.length = 0;
   debugShowMemoryHandler();
   await flushPromises();
-  await clickModalButton("Memories");
 
   const debugLogTextAfterCacheHit = JSON.stringify(debugLogs);
 
   if (!debugLogTextAfterCacheHit.includes("ai-cache") || !debugLogTextAfterCacheHit.includes("hit")) {
-    throw new Error("Debug logging must include AI cache hits");
+    throw new Error("Debug logging must include automatic AI cache hits");
   }
 
   for (const forbiddenDebugText of [
@@ -922,8 +927,7 @@ try {
     "Authorization",
     "x-api-key"
   ]) {
-    if (debugLogTextBeforeAi.includes(forbiddenDebugText) ||
-      debugLogTextAfterAi.includes(forbiddenDebugText) ||
+    if (debugLogTextAfterAi.includes(forbiddenDebugText) ||
       debugLogTextAfterCacheHit.includes(forbiddenDebugText)) {
       throw new Error(`Debug logging must not include private diagnostic content: ${forbiddenDebugText}`);
     }
@@ -937,12 +941,37 @@ layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
 openedFiles.length = 0;
+const missingKeyAutomaticRequests = [];
+globalThis.fetch = async (...args) => {
+  missingKeyAutomaticRequests.push(args);
+  throw new Error("Automatic AI request occurred without a selected provider API key");
+};
 const aiEnabledManualPlugin = new GentleMemoriesPlugin(createMockApp());
 aiEnabledManualPlugin.data = { settings: { showOnStartup: false, aiEnabled: true } };
 await aiEnabledManualPlugin.onload();
 aiEnabledManualPlugin.commands.find((command) => command.id === "show-memory")?.callback();
 await flushPromises();
 assertMemoryModal("Manual show memory command must include AI button when AI is enabled", { expectAiButton: true });
+
+if (missingKeyAutomaticRequests.length !== 0) {
+  throw new Error("AI-enabled memory display without a selected provider API key must not make an automatic request");
+}
+
+if (notices.length !== 0) {
+  throw new Error("AI-enabled memory display without a selected provider API key must not show an automatic missing-key notice");
+}
+
+await clickModalButton("Memories");
+
+if (!notices.includes("Add a OpenAI API key in Gentle Memories settings to generate a reading prompt.")) {
+  throw new Error("Manual Memories click without a selected provider API key must show the missing-key notice");
+}
+
+if (missingKeyAutomaticRequests.length !== 0) {
+  throw new Error("Manual Memories click without a selected provider API key must not make a request");
+}
+
+globalThis.fetch = originalFetch;
 
 layoutCallbacks = [];
 notices.length = 0;
@@ -1049,14 +1078,22 @@ try {
   await reflectionOrderPlugin.onload();
   reflectionOrderPlugin.commands.find((command) => command.id === "show-memory")?.callback();
   await flushPromises();
-  await clickModalButton("Memories");
 
   const renderedText = renderedModals[0].texts.join("\n");
   const reflectionIndex = renderedText.indexOf("Reflection shown before note body.");
   const bodyIndex = renderedText.indexOf("Rendered body text that should appear after the reflection.");
 
   if (reflectionIndex === -1 || bodyIndex === -1 || reflectionIndex > bodyIndex) {
-    throw new Error("AI reading prompt must render before the rich note content after generation");
+    throw new Error("Automatic AI lead-in must render before the rich note content");
+  }
+
+  if (!renderedText.includes("Memory lead-in") || !renderedText.includes("Original note")) {
+    throw new Error("Automatic AI lead-in must be visibly separated from the original note content");
+  }
+
+  if (!renderedModals[0].classes.includes("gentle-memories-ai-lead-in") ||
+    !renderedModals[0].classes.includes("gentle-memories-note-content")) {
+    throw new Error("Automatic AI lead-in and original note content must use separate containers");
   }
 } finally {
   globalThis.fetch = originalFetch;
@@ -1066,10 +1103,23 @@ layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
 openedFiles.length = 0;
-const preClickNetworkRequests = [];
+const automaticStartupRequests = [];
 globalThis.fetch = async (...args) => {
-  preClickNetworkRequests.push(args);
-  throw new Error("Network request occurred before Memories was clicked");
+  automaticStartupRequests.push(args);
+
+  return {
+    ok: true,
+    status: 200,
+    async json() {
+      return {
+        choices: [{
+          message: {
+            content: "Automatic startup lead-in."
+          }
+        }]
+      };
+    }
+  };
 };
 
 try {
@@ -1084,12 +1134,16 @@ try {
   await aiEnabledStartupPlugin.onload();
   layoutCallbacks.forEach((callback) => callback());
   await flushPromises();
-  assertMemoryModal("AI-enabled startup display must include the AI button before any reflection request", {
+  assertMemoryModal("AI-enabled startup display must include the AI button and automatic lead-in", {
     expectAiButton: true
   });
 
-  if (preClickNetworkRequests.length !== 0) {
-    throw new Error("No network request may occur before the user clicks Memories");
+  if (automaticStartupRequests.length !== 1) {
+    throw new Error("AI-enabled startup display with an API key must automatically request one AI lead-in");
+  }
+
+  if (!renderedModals[0]?.texts.includes("Automatic startup lead-in.")) {
+    throw new Error("AI-enabled startup display must show the automatically generated lead-in");
   }
 } finally {
   globalThis.fetch = originalFetch;
@@ -1202,17 +1256,15 @@ try {
   await aiPrivacyPlugin.onload();
   aiPrivacyPlugin.commands.find((command) => command.id === "show-memory")?.callback();
   await flushPromises();
-  assertMemoryModal("AI privacy test must show a memory before generating a reflection", {
+  assertMemoryModal("AI privacy test must show a memory and automatically generate a lead-in", {
     expectAiButton: true,
     expectedTitle: "2024-05-10 Secret Journal",
     expectedDate: "2024-05-10",
     expectedExcerpt: expectedAiExcerpt
   });
 
-  await clickModalButton("Memories");
-
   if (aiPrivacyRequests.length !== 1) {
-    throw new Error("Memories must make exactly one request after the user clicks");
+    throw new Error("AI-enabled memory display with an API key must make exactly one automatic request");
   }
 
   const [_url, requestInit] = aiPrivacyRequests[0];
@@ -1292,10 +1344,9 @@ try {
   await claudePlugin.onload();
   claudePlugin.commands.find((command) => command.id === "show-memory")?.callback();
   await flushPromises();
-  await clickModalButton("Memories");
 
   if (claudeRequests.length !== 1) {
-    throw new Error("Claude provider must make one reflection request after the user clicks");
+    throw new Error("Claude provider must make one automatic reflection request when AI is enabled and keyed");
   }
 
   const [claudeUrl, claudeInit] = claudeRequests[0];
@@ -1378,17 +1429,15 @@ try {
   await aiCachePlugin.onload();
   aiCachePlugin.commands.find((command) => command.id === "show-memory")?.callback();
   await flushPromises();
-  assertMemoryModal("AI cache test must show a memory before generating a reflection", {
+  assertMemoryModal("AI cache test must show a memory and automatically generate a reflection", {
     expectAiButton: true,
     expectedTitle: "2024-06-01 Journal",
     expectedDate: "2024-06-01",
     expectedExcerpt: "A cacheable memory excerpt with enough detail to display."
   });
 
-  await clickModalButton("Memories");
-
   if (aiCacheRequests.length !== 1) {
-    throw new Error("AI cache miss must make one network request");
+    throw new Error("Automatic AI cache miss must make one network request");
   }
 
   const aiCacheContentHash = aiCachePlugin.data?.displayHistory?.shown?.[aiCachePath]?.contentHash;
@@ -1417,14 +1466,13 @@ try {
   await aiCacheHitPlugin.onload();
   aiCacheHitPlugin.commands.find((command) => command.id === "show-memory")?.callback();
   await flushPromises();
-  await clickModalButton("Memories");
 
   if (aiCacheRequests.length !== 0) {
-    throw new Error("AI cache hit for ${path}:${contentHash} must not make a network request");
+    throw new Error("Automatic AI cache hit for ${path}:${contentHash} must not make a network request");
   }
 
   if (!renderedModals[0]?.texts.includes("Cached reflection text.")) {
-    throw new Error("AI cache hit must show the cached reflection");
+    throw new Error("Automatic AI cache hit must show the cached reflection");
   }
 } finally {
   globalThis.fetch = originalFetch;

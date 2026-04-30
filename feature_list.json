@@ -213,9 +213,9 @@
     {
       "id": "F027",
       "description": "Automatically generate or load the AI lead-in when AI is enabled, while visually separating it from the original note content and preserving privacy constraints.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     }
   ]

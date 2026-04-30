@@ -215,6 +215,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
         this,
         memory,
         this.settings.aiEnabled,
+        Boolean(this.getSelectedApiKey()),
         (currentPath) => this.selectMemory(currentPath),
         (shownMemory) => this.recordMemoryShown(shownMemory, Date.now()),
         (reflectionMemory) => this.generateReflection(reflectionMemory)
@@ -469,11 +470,12 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   }
 };
 var MemoryModal = class extends import_obsidian.Modal {
-  constructor(app, parentComponent, memory, aiEnabled, selectNextMemory, recordMemoryShown, generateReflection) {
+  constructor(app, parentComponent, memory, aiEnabled, aiCanAutoLoad, selectNextMemory, recordMemoryShown, generateReflection) {
     super(app);
     this.parentComponent = parentComponent;
     this.memory = memory;
     this.aiEnabled = aiEnabled;
+    this.aiCanAutoLoad = aiCanAutoLoad;
     this.selectNextMemory = selectNextMemory;
     this.recordMemoryShown = recordMemoryShown;
     this.generateReflection = generateReflection;
@@ -490,11 +492,16 @@ var MemoryModal = class extends import_obsidian.Modal {
       });
     }
     if (this.reflectionText) {
-      contentEl.createEl("p", {
-        cls: "gentle-memories-reflection",
+      const reflectionEl = contentEl.createDiv({ cls: "gentle-memories-ai-lead-in" });
+      reflectionEl.createEl("h3", { text: "Memory lead-in" });
+      reflectionEl.createEl("p", {
         text: this.reflectionText
       });
     }
+    contentEl.createEl("h3", {
+      cls: "gentle-memories-original-note-heading",
+      text: "Original note"
+    });
     const noteContentEl = contentEl.createDiv({ cls: "gentle-memories-note-content" });
     const renderedMarkdown = this.expanded ? this.memory.markdownBody : createMarkdownPreview(this.memory.markdownBody);
     void import_obsidian.MarkdownRenderer.render(this.app, renderedMarkdown, noteContentEl, this.memory.path, this.parentComponent).catch(() => {
@@ -521,6 +528,7 @@ var MemoryModal = class extends import_obsidian.Modal {
         void this.showReflection();
       }));
     }
+    this.startAutomaticReflectionLoad();
   }
   async openSourceNote() {
     await this.app.workspace.getLeaf(false).openFile(this.memory.sourceFile);
@@ -531,6 +539,7 @@ var MemoryModal = class extends import_obsidian.Modal {
     if (nextMemory) {
       this.memory = nextMemory;
       this.reflectionText = void 0;
+      this.automaticReflectionPath = void 0;
       this.expanded = false;
       this.onOpen();
       await this.recordMemoryShown(nextMemory);
@@ -542,6 +551,16 @@ var MemoryModal = class extends import_obsidian.Modal {
       this.reflectionText = reflection;
       this.onOpen();
     }
+  }
+  startAutomaticReflectionLoad() {
+    if (!this.aiEnabled || !this.aiCanAutoLoad || this.reflectionText) {
+      return;
+    }
+    if (this.automaticReflectionPath === this.memory.path) {
+      return;
+    }
+    this.automaticReflectionPath = this.memory.path;
+    void this.showReflection();
   }
 };
 var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
