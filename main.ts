@@ -84,7 +84,7 @@ const OPENAI_REFLECTION_MODEL = "gpt-4o-mini";
 const CLAUDE_REFLECTION_ENDPOINT = "https://api.anthropic.com/v1/messages";
 const CLAUDE_REFLECTION_MODEL = "claude-3-5-haiku-latest";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const RICH_MEMORY_PREVIEW_CHARACTERS = 1200;
+const RICH_MEMORY_PREVIEW_CHARACTERS = 500;
 
 function toComparableTag(tag: string): string {
   return tag.trim().replace(/^#/, "").toLowerCase();
@@ -251,7 +251,7 @@ function createMarkdownPreview(markdown: string): string {
 
   const clipped = markdown.slice(0, RICH_MEMORY_PREVIEW_CHARACTERS);
   const paragraphBreak = clipped.lastIndexOf("\n\n");
-  const preview = paragraphBreak >= 400
+  const preview = paragraphBreak >= 160
     ? clipped.slice(0, paragraphBreak)
     : clipped;
 

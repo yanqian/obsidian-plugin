@@ -949,12 +949,13 @@ notices.length = 0;
 renderedModals.length = 0;
 openedFiles.length = 0;
 const longNoteStart = "A long rendered memory begins with enough detail to remain visible in the compact preview.";
+const longNotePreviewBoundary = "MYSTERY_PREVIEW_BOUNDARY_visible_only_after_show_more";
 const longNoteEnd = "FINAL_LONG_NOTE_DETAIL_visible_only_after_show_more";
 const longNotePlugin = new GentleMemoriesPlugin(createMockApp([{
   path: "Long/2024-07-01 Journal.md",
   basename: "2024-07-01 Journal",
   date: "2024-07-01",
-  excerpt: `${longNoteStart} ${"additional sentence. ".repeat(90)}`,
+  excerpt: `${longNoteStart} ${"additional sentence. ".repeat(35)} ${longNotePreviewBoundary}`,
   extraContent: `${"Middle paragraph with [[wikilink]] and ![[image.png]]. ".repeat(45)}\n\n${longNoteEnd}`
 }]));
 longNotePlugin.data = { settings: { showOnStartup: false, aiEnabled: true } };
@@ -973,6 +974,10 @@ if (longNoteText.includes(longNoteEnd)) {
   throw new Error("Long rich memory display must start with a compact preview");
 }
 
+if (longNoteText.includes(longNotePreviewBoundary)) {
+  throw new Error("Long rich memory display must keep later opening details hidden in the compact preview");
+}
+
 if (!longNoteModal.buttons.includes("Show more")) {
   throw new Error("Long rich memory display must include Show more before expansion");
 }
@@ -985,6 +990,10 @@ if (!longNoteText.includes(longNoteEnd)) {
   throw new Error("Show more must expand long rich memory content to the full note body");
 }
 
+if (!longNoteText.includes(longNotePreviewBoundary)) {
+  throw new Error("Show more must reveal details beyond the shorter compact preview");
+}
+
 if (!longNoteModal.buttons.includes("Show less")) {
   throw new Error("Expanded rich memory display must include Show less");
 }
@@ -995,6 +1004,10 @@ longNoteText = longNoteModal.texts.join("\n");
 
 if (longNoteText.includes(longNoteEnd)) {
   throw new Error("Show less must return long rich memory content to the compact preview");
+}
+
+if (longNoteText.includes(longNotePreviewBoundary)) {
+  throw new Error("Show less must hide details beyond the shorter compact preview again");
 }
 
 if (!longNoteModal.buttons.includes("Show more")) {

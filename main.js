@@ -48,7 +48,7 @@ var OPENAI_REFLECTION_MODEL = "gpt-4o-mini";
 var CLAUDE_REFLECTION_ENDPOINT = "https://api.anthropic.com/v1/messages";
 var CLAUDE_REFLECTION_MODEL = "claude-3-5-haiku-latest";
 var MS_PER_DAY = 24 * 60 * 60 * 1e3;
-var RICH_MEMORY_PREVIEW_CHARACTERS = 1200;
+var RICH_MEMORY_PREVIEW_CHARACTERS = 500;
 function toComparableTag(tag) {
   return tag.trim().replace(/^#/, "").toLowerCase();
 }
@@ -162,7 +162,7 @@ function createMarkdownPreview(markdown) {
   }
   const clipped = markdown.slice(0, RICH_MEMORY_PREVIEW_CHARACTERS);
   const paragraphBreak = clipped.lastIndexOf("\n\n");
-  const preview = paragraphBreak >= 400 ? clipped.slice(0, paragraphBreak) : clipped;
+  const preview = paragraphBreak >= 160 ? clipped.slice(0, paragraphBreak) : clipped;
   return `${preview.trim()}
 
 ...`;
