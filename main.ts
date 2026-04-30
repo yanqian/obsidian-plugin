@@ -84,7 +84,7 @@ const OPENAI_REFLECTION_MODEL = "gpt-4o-mini";
 const CLAUDE_REFLECTION_ENDPOINT = "https://api.anthropic.com/v1/messages";
 const CLAUDE_REFLECTION_MODEL = "claude-3-5-haiku-latest";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const RICH_MEMORY_PREVIEW_CHARACTERS = 500;
+const RICH_MEMORY_PREVIEW_CHARACTERS = 240;
 
 function toComparableTag(tag: string): string {
   return tag.trim().replace(/^#/, "").toLowerCase();
@@ -251,7 +251,7 @@ function createMarkdownPreview(markdown: string): string {
 
   const clipped = markdown.slice(0, RICH_MEMORY_PREVIEW_CHARACTERS);
   const paragraphBreak = clipped.lastIndexOf("\n\n");
-  const preview = paragraphBreak >= 160
+  const preview = paragraphBreak >= 80
     ? clipped.slice(0, paragraphBreak)
     : clipped;
 
@@ -639,6 +639,7 @@ class MemoryModal extends Modal {
   }
 
   private reflectionText: string | undefined;
+  private reflectionLoading = false;
   private automaticReflectionPath: string | undefined;
   private expanded = false;
 
@@ -654,11 +655,12 @@ class MemoryModal extends Modal {
       });
     }
 
-    if (this.reflectionText) {
+    if (this.reflectionText || this.reflectionLoading) {
       const reflectionEl = contentEl.createDiv({ cls: "gentle-memories-ai-lead-in" });
       reflectionEl.createEl("h3", { text: "Memory lead-in" });
       reflectionEl.createEl("p", {
-        text: this.reflectionText
+        cls: this.reflectionLoading ? "gentle-memories-ai-loading" : undefined,
+        text: this.reflectionLoading ? "Loading memory lead-in..." : this.reflectionText
       });
     }
 
@@ -666,7 +668,12 @@ class MemoryModal extends Modal {
       cls: "gentle-memories-original-note-heading",
       text: "Original note"
     });
-    const noteContentEl = contentEl.createDiv({ cls: "gentle-memories-note-content" });
+    const isCollapsedLongNote = !this.expanded && this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS;
+    const noteContentEl = contentEl.createDiv({
+      cls: isCollapsedLongNote
+        ? "gentle-memories-note-content gentle-memories-note-preview"
+        : "gentle-memories-note-content"
+    });
     const renderedMarkdown = this.expanded
       ? this.memory.markdownBody
       : createMarkdownPreview(this.memory.markdownBody);
@@ -727,6 +734,7 @@ class MemoryModal extends Modal {
     if (nextMemory) {
       this.memory = nextMemory;
       this.reflectionText = undefined;
+      this.reflectionLoading = false;
       this.automaticReflectionPath = undefined;
       this.expanded = false;
       this.onOpen();
@@ -735,12 +743,20 @@ class MemoryModal extends Modal {
   }
 
   private async showReflection(): Promise<void> {
+    const memoryPath = this.memory.path;
     const reflection = await this.generateReflection(this.memory);
+
+    if (this.memory.path !== memoryPath) {
+      return;
+    }
+
+    this.reflectionLoading = false;
 
     if (reflection) {
       this.reflectionText = reflection;
-      this.onOpen();
     }
+
+    this.onOpen();
   }
 
   private startAutomaticReflectionLoad(): void {
@@ -753,6 +769,8 @@ class MemoryModal extends Modal {
     }
 
     this.automaticReflectionPath = this.memory.path;
+    this.reflectionLoading = true;
+    this.onOpen();
     void this.showReflection();
   }
 }

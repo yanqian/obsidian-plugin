@@ -34,7 +34,10 @@ for (const styleSnippet of [
   ".gentle-memories-ai-lead-in",
   "var(--background-secondary)",
   "var(--interactive-accent)",
-  ".gentle-memories-original-note-heading"
+  ".gentle-memories-original-note-heading",
+  ".gentle-memories-note-preview",
+  "max-height: 45vh",
+  ".gentle-memories-ai-loading"
 ]) {
   if (!stylesSource.includes(styleSnippet)) {
     throw new Error(`styles.css must visually separate the AI lead-in with theme-aware styling: missing ${styleSnippet}`);
@@ -1019,6 +1022,10 @@ if (longNoteText.includes(longNotePreviewBoundary)) {
   throw new Error("Long rich memory display must keep later opening details hidden in the compact preview");
 }
 
+if (!longNoteModal.classes.some((className) => className.includes("gentle-memories-note-preview"))) {
+  throw new Error("Collapsed long rich memory display must constrain the preview height");
+}
+
 if (!longNoteModal.buttons.includes("Show more")) {
   throw new Error("Long rich memory display must include Show more before expansion");
 }
@@ -1033,6 +1040,10 @@ if (!longNoteText.includes(longNoteEnd)) {
 
 if (!longNoteText.includes(longNotePreviewBoundary)) {
   throw new Error("Show more must reveal details beyond the shorter compact preview");
+}
+
+if (longNoteModal.classes.some((className) => className.includes("gentle-memories-note-preview"))) {
+  throw new Error("Expanded long rich memory display must remove the constrained preview class");
 }
 
 if (!longNoteModal.buttons.includes("Show less")) {
@@ -1051,6 +1062,10 @@ if (longNoteText.includes(longNotePreviewBoundary)) {
   throw new Error("Show less must hide details beyond the shorter compact preview again");
 }
 
+if (!longNoteModal.classes.some((className) => className.includes("gentle-memories-note-preview"))) {
+  throw new Error("Show less must restore the constrained preview class");
+}
+
 if (!longNoteModal.buttons.includes("Show more")) {
   throw new Error("Collapsed rich memory display must restore Show more");
 }
@@ -1059,18 +1074,21 @@ layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
 openedFiles.length = 0;
-globalThis.fetch = async () => ({
-  ok: true,
-  status: 200,
-  async json() {
-    return {
-      choices: [{
-        message: {
-          content: "Reflection shown before note body."
-        }
-      }]
-    };
-  }
+let resolveReflectionOrderFetch;
+globalThis.fetch = async () => new Promise((resolve) => {
+  resolveReflectionOrderFetch = () => resolve({
+    ok: true,
+    status: 200,
+    async json() {
+      return {
+        choices: [{
+          message: {
+            content: "Reflection shown before note body."
+          }
+        }]
+      };
+    }
+  });
 });
 
 try {
@@ -1091,7 +1109,20 @@ try {
   reflectionOrderPlugin.commands.find((command) => command.id === "show-memory")?.callback();
   await flushPromises();
 
-  const renderedText = renderedModals[0].texts.join("\n");
+  let renderedText = renderedModals[0].texts.join("\n");
+
+  if (!renderedText.includes("Loading memory lead-in...")) {
+    throw new Error("Automatic AI lead-in must show a loading state while waiting for the provider");
+  }
+
+  if (!renderedModals[0].classes.includes("gentle-memories-ai-loading")) {
+    throw new Error("Automatic AI lead-in loading state must use a distinct loading class");
+  }
+
+  resolveReflectionOrderFetch();
+  await flushPromises();
+
+  renderedText = renderedModals[0].texts.join("\n");
   const reflectionIndex = renderedText.indexOf("Reflection shown before note body.");
   const bodyIndex = renderedText.indexOf("Rendered body text that should appear after the reflection.");
 
@@ -1106,6 +1137,76 @@ try {
   if (!renderedModals[0].classes.includes("gentle-memories-ai-lead-in") ||
     !renderedModals[0].classes.includes("gentle-memories-note-content")) {
     throw new Error("Automatic AI lead-in and original note content must use separate containers");
+  }
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+openedFiles.length = 0;
+const staleResolvers = [];
+globalThis.fetch = async () => new Promise((resolve) => {
+  const requestIndex = staleResolvers.length;
+  staleResolvers.push(() => resolve({
+    ok: true,
+    status: 200,
+    async json() {
+      return {
+        choices: [{
+          message: {
+            content: requestIndex === 0 ? "Stale first lead-in." : "Fresh second lead-in."
+          }
+        }]
+      };
+    }
+  }));
+});
+
+try {
+  const staleLeadInPlugin = new GentleMemoriesPlugin(createMockApp([
+    {
+      path: "Stale/2024-07-03 Journal.md",
+      basename: "2024-07-03 Journal",
+      date: "2024-07-03",
+      excerpt: "First note text that should not receive a stale lead-in after Next."
+    },
+    {
+      path: "Stale/2024-07-04 Journal.md",
+      basename: "2024-07-04 Journal",
+      date: "2024-07-04",
+      excerpt: "Second note text that should receive the fresh lead-in."
+    }
+  ]));
+  staleLeadInPlugin.data = {
+    settings: {
+      showOnStartup: false,
+      aiEnabled: true,
+      openAiApiKey: "test-api-key"
+    }
+  };
+  await staleLeadInPlugin.onload();
+  staleLeadInPlugin.commands.find((command) => command.id === "show-memory")?.callback();
+  await flushPromises();
+
+  await clickModalButton("Next");
+  await flushPromises();
+
+  staleResolvers[0]?.();
+  await flushPromises();
+
+  let staleText = renderedModals[0].texts.join("\n");
+  if (staleText.includes("Stale first lead-in.")) {
+    throw new Error("Stale automatic AI result from a previous memory must not overwrite the current modal");
+  }
+
+  staleResolvers[1]?.();
+  await flushPromises();
+
+  staleText = renderedModals[0].texts.join("\n");
+  if (!staleText.includes("Fresh second lead-in.")) {
+    throw new Error("Current memory automatic AI result must still render after ignoring stale results");
   }
 } finally {
   globalThis.fetch = originalFetch;

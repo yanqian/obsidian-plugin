@@ -225,6 +225,22 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F029",
+      "description": "Limit the default memory note preview to a shorter roughly one-screen collapsed view while preserving Show more and Show less.",
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
+      "last_error": ""
+    },
+    {
+      "id": "F030",
+      "description": "Show an immediate loading state for automatic AI lead-in generation and replace it asynchronously without stale updates.",
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
+      "last_error": ""
     }
   ]
 }

@@ -487,3 +487,23 @@ The AI-generated lead-in should be visually distinct from the user's original no
 - Keep the original note content in normal Obsidian reading style.
 - The styling must work in light and dark themes.
 - Local installation documentation must mention any required style file.
+
+### 15.9 One-screen Default Preview
+
+The memory modal should avoid showing too much of the note before expansion:
+
+- Reduce the default rendered note preview to a short opening preview.
+- The collapsed note preview should be constrained to roughly one screen at most.
+- The collapsed preview should use a height cap so unusually dense content cannot dominate the modal.
+- `Show more` must still expand to the full rendered note body.
+- `Show less` must return to the constrained preview.
+
+### 15.10 AI Lead-in Loading State
+
+Automatic AI lead-in generation should not make the modal feel blocked:
+
+- The modal must render immediately before the automatic AI request finishes.
+- When automatic AI generation starts, show a lightweight loading state in the AI lead-in section.
+- Replace the loading state with the generated or cached lead-in when available.
+- If the user advances to another memory, stale AI results from the previous memory must not overwrite the new modal content.
+- If AI is disabled or the selected provider key is missing, no loading state should appear.

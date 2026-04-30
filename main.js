@@ -48,7 +48,7 @@ var OPENAI_REFLECTION_MODEL = "gpt-4o-mini";
 var CLAUDE_REFLECTION_ENDPOINT = "https://api.anthropic.com/v1/messages";
 var CLAUDE_REFLECTION_MODEL = "claude-3-5-haiku-latest";
 var MS_PER_DAY = 24 * 60 * 60 * 1e3;
-var RICH_MEMORY_PREVIEW_CHARACTERS = 500;
+var RICH_MEMORY_PREVIEW_CHARACTERS = 240;
 function toComparableTag(tag) {
   return tag.trim().replace(/^#/, "").toLowerCase();
 }
@@ -162,7 +162,7 @@ function createMarkdownPreview(markdown) {
   }
   const clipped = markdown.slice(0, RICH_MEMORY_PREVIEW_CHARACTERS);
   const paragraphBreak = clipped.lastIndexOf("\n\n");
-  const preview = paragraphBreak >= 160 ? clipped.slice(0, paragraphBreak) : clipped;
+  const preview = paragraphBreak >= 80 ? clipped.slice(0, paragraphBreak) : clipped;
   return `${preview.trim()}
 
 ...`;
@@ -479,6 +479,7 @@ var MemoryModal = class extends import_obsidian.Modal {
     this.selectNextMemory = selectNextMemory;
     this.recordMemoryShown = recordMemoryShown;
     this.generateReflection = generateReflection;
+    this.reflectionLoading = false;
     this.expanded = false;
   }
   onOpen() {
@@ -491,18 +492,22 @@ var MemoryModal = class extends import_obsidian.Modal {
         text: this.memory.date
       });
     }
-    if (this.reflectionText) {
+    if (this.reflectionText || this.reflectionLoading) {
       const reflectionEl = contentEl.createDiv({ cls: "gentle-memories-ai-lead-in" });
       reflectionEl.createEl("h3", { text: "Memory lead-in" });
       reflectionEl.createEl("p", {
-        text: this.reflectionText
+        cls: this.reflectionLoading ? "gentle-memories-ai-loading" : void 0,
+        text: this.reflectionLoading ? "Loading memory lead-in..." : this.reflectionText
       });
     }
     contentEl.createEl("h3", {
       cls: "gentle-memories-original-note-heading",
       text: "Original note"
     });
-    const noteContentEl = contentEl.createDiv({ cls: "gentle-memories-note-content" });
+    const isCollapsedLongNote = !this.expanded && this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS;
+    const noteContentEl = contentEl.createDiv({
+      cls: isCollapsedLongNote ? "gentle-memories-note-content gentle-memories-note-preview" : "gentle-memories-note-content"
+    });
     const renderedMarkdown = this.expanded ? this.memory.markdownBody : createMarkdownPreview(this.memory.markdownBody);
     void import_obsidian.MarkdownRenderer.render(this.app, renderedMarkdown, noteContentEl, this.memory.path, this.parentComponent).catch(() => {
       noteContentEl.createEl("p", {
@@ -539,6 +544,7 @@ var MemoryModal = class extends import_obsidian.Modal {
     if (nextMemory) {
       this.memory = nextMemory;
       this.reflectionText = void 0;
+      this.reflectionLoading = false;
       this.automaticReflectionPath = void 0;
       this.expanded = false;
       this.onOpen();
@@ -546,11 +552,16 @@ var MemoryModal = class extends import_obsidian.Modal {
     }
   }
   async showReflection() {
+    const memoryPath = this.memory.path;
     const reflection = await this.generateReflection(this.memory);
+    if (this.memory.path !== memoryPath) {
+      return;
+    }
+    this.reflectionLoading = false;
     if (reflection) {
       this.reflectionText = reflection;
-      this.onOpen();
     }
+    this.onOpen();
   }
   startAutomaticReflectionLoad() {
     if (!this.aiEnabled || !this.aiCanAutoLoad || this.reflectionText) {
@@ -560,6 +571,8 @@ var MemoryModal = class extends import_obsidian.Modal {
       return;
     }
     this.automaticReflectionPath = this.memory.path;
+    this.reflectionLoading = true;
+    this.onOpen();
     void this.showReflection();
   }
 };
