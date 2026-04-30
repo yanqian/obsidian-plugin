@@ -273,6 +273,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F035",
+      "description": "Make memory modal action buttons wrap cleanly on narrow mobile screens so Show more and other labels are not clipped.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
     }
   ]
 }

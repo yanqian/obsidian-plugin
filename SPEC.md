@@ -547,3 +547,13 @@ Add repository CI that can support marketplace review notes when Windows or Linu
 - Use Node.js 20 with npm dependency caching.
 - Run `npm ci` followed by `npm run build`.
 - Keep this as build compatibility verification, not a claim of manual GUI testing on every OS.
+
+### 15.15 Mobile Button Layout
+
+The memory modal action buttons must remain readable on narrow mobile screens:
+
+- The `Show more` and `Show less` buttons must not be horizontally clipped on iOS.
+- Modal action buttons should wrap instead of shrinking into unreadable labels.
+- Buttons should keep a stable minimum width on normal narrow layouts.
+- Very narrow screens should show action buttons as full-width rows.
+- Preserve the existing button labels and behavior.
