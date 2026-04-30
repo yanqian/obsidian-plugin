@@ -67,3 +67,16 @@
     flex: 1 1 calc(50% - 0.5rem);
   }
 }
+
+@media (max-width: 360px) {
+  .gentle-memories-buttons .setting-item-control {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .gentle-memories-buttons button {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+  }
+}

@@ -277,10 +277,10 @@
     {
       "id": "F035",
       "description": "Make memory modal action buttons wrap cleanly on narrow mobile screens so Show more and other labels are not clipped.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 1,
-      "last_error": "`styles.css` adds wrapping at `max-width: 480px`, but it never implements the acceptance criterion that very narrow screens show action buttons as full-width rows; buttons remain configured as roughly two-column flex items (`flex: 1 1 calc(50% - 0.5rem)`) even on very narrow widths."
+      "passes": true,
+      "status": "done",
+      "attempts": 2,
+      "last_error": ""
     }
   ]
 }
