@@ -557,3 +557,13 @@ The memory modal action buttons must remain readable on narrow mobile screens:
 - Buttons should keep a stable minimum width on normal narrow layouts.
 - Very narrow screens should show action buttons as full-width rows.
 - Preserve the existing button labels and behavior.
+
+### 15.16 Obsidian ReviewBot Compliance
+
+Address required ObsidianReviewBot feedback for the community plugin submission:
+
+- Use Obsidian's built-in `requestUrl` API instead of global `fetch` for AI provider network requests.
+- Preserve OpenAI and Claude request behavior, headers, request bodies, response parsing, and error handling.
+- Use `new Setting(containerEl).setName(...).setHeading()` for the settings tab heading instead of creating an HTML heading element directly.
+- Update settings UI labels flagged by the bot to sentence case while preserving meaning and behavior.
+- Keep all existing privacy constraints and AI-disabled behavior unchanged.

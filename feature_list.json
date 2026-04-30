@@ -281,6 +281,14 @@
       "status": "done",
       "attempts": 2,
       "last_error": ""
+    },
+    {
+      "id": "F036",
+      "description": "Address ObsidianReviewBot required feedback by replacing fetch with requestUrl, using Setting.setHeading for the settings title, and converting flagged settings labels to sentence case.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
     }
   ]
 }
