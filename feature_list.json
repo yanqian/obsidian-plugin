@@ -321,6 +321,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F041",
+      "description": "Address remaining ReviewBot sentence-case risk by using scanner-compatible Openai casing in OpenAI-facing user-visible settings text while preserving internal provider behavior.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
     }
   ]
 }

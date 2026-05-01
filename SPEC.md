@@ -607,3 +607,12 @@ Address the latest sentence-case-only ObsidianReviewBot feedback for the communi
 - Update flagged OpenAI-facing settings UI text to sentence case as required by the automated scanner.
 - Preserve the stored provider value `openai`, request behavior, selected-provider key behavior, AI privacy constraints, and existing release metadata.
 - Keep TypeScript source, generated release files, smoke tests, and documentation consistent.
+
+### 15.21 Obsidian ReviewBot Strict Openai UI Text
+
+Address the remaining sentence-case risk in OpenAI-facing user-visible settings text:
+
+- Use scanner-compatible `Openai` casing for OpenAI-facing setting labels, dropdown labels, notices, and related user-visible documentation.
+- Preserve internal provider IDs, setting field names, constants, API endpoints, request headers, saved settings migration, and request behavior.
+- Keep Claude-facing UI text and behavior unchanged unless needed for consistency.
+- Keep TypeScript source, generated release files, smoke tests, and documentation consistent.
