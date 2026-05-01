@@ -588,3 +588,13 @@ Update the user-facing memory ribbon icon to reduce confusion with document outl
 - Keep the ribbon tooltip as sentence-case `Show memory`.
 - Preserve the existing ribbon click behavior and manual memory display flow.
 - Do not change command palette behavior, debug mode behavior, memory selection, display history, AI, startup cooldown, or privacy behavior.
+
+### 15.19 Obsidian ReviewBot Follow-up Compliance
+
+Address the latest required ObsidianReviewBot feedback for the community plugin submission:
+
+- Remove unnecessary `async` from methods that do not use `await`, including AI response parsing.
+- Avoid including the plugin name in settings headings.
+- Update flagged UI labels to sentence case while preserving provider brand names where appropriate.
+- Preserve existing settings behavior, AI provider behavior, ribbon behavior, memory modal behavior, privacy constraints, and release metadata.
+- Keep generated release files in sync with TypeScript source changes.
