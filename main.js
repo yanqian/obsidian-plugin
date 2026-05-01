@@ -404,10 +404,10 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     return this.settings.aiProvider === "claude" ? this.settings.claudeApiKey : this.settings.openAiApiKey;
   }
   getSelectedProviderName() {
-    return this.settings.aiProvider === "claude" ? "Claude" : "OpenAI";
+    return this.settings.aiProvider === "claude" ? "Claude" : "Openai";
   }
   getSelectedProviderKeyLabel() {
-    return this.settings.aiProvider === "claude" ? "Claude API key" : "OpenAI key";
+    return this.settings.aiProvider === "claude" ? "Claude API key" : "Openai key";
   }
   getSelectedProviderArticle() {
     return this.settings.aiProvider === "claude" ? "a" : "an";
@@ -629,7 +629,7 @@ var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
       });
     });
     new import_obsidian.Setting(containerEl).setName("AI provider").addDropdown((dropdown) => {
-      dropdown.addOption("openai", "OpenAI").addOption("claude", "Claude").setValue(this.plugin.settings.aiProvider).onChange(async (value) => {
+      dropdown.addOption("openai", "Openai").addOption("claude", "Claude").setValue(this.plugin.settings.aiProvider).onChange(async (value) => {
         this.plugin.settings.aiProvider = value === "claude" ? "claude" : "openai";
         await this.plugin.saveSettings();
         this.display();
@@ -645,7 +645,7 @@ var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
         });
       });
     } else {
-      new import_obsidian.Setting(containerEl).setName("OpenAI key").addText((text) => {
+      new import_obsidian.Setting(containerEl).setName("Openai key").addText((text) => {
         var _a;
         text.inputEl.type = "password";
         text.setValue((_a = this.plugin.settings.openAiApiKey) != null ? _a : "").onChange(async (value) => {

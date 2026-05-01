@@ -549,11 +549,11 @@ export default class GentleMemoriesPlugin extends Plugin {
   }
 
   private getSelectedProviderName(): string {
-    return this.settings.aiProvider === "claude" ? "Claude" : "OpenAI";
+    return this.settings.aiProvider === "claude" ? "Claude" : "Openai";
   }
 
   private getSelectedProviderKeyLabel(): string {
-    return this.settings.aiProvider === "claude" ? "Claude API key" : "OpenAI key";
+    return this.settings.aiProvider === "claude" ? "Claude API key" : "Openai key";
   }
 
   private getSelectedProviderArticle(): string {
@@ -862,7 +862,7 @@ class GentleMemoriesSettingTab extends PluginSettingTab {
       .setName("AI provider")
       .addDropdown((dropdown) => {
         dropdown
-          .addOption("openai", "OpenAI")
+          .addOption("openai", "Openai")
           .addOption("claude", "Claude")
           .setValue(this.plugin.settings.aiProvider)
           .onChange(async (value) => {
@@ -886,7 +886,7 @@ class GentleMemoriesSettingTab extends PluginSettingTab {
         });
     } else {
       new Setting(containerEl)
-        .setName("OpenAI key")
+        .setName("Openai key")
         .addText((text) => {
           text.inputEl.type = "password";
           text
