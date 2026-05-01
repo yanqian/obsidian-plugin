@@ -598,3 +598,12 @@ Address the latest required ObsidianReviewBot feedback for the community plugin 
 - Update flagged UI labels to sentence case while preserving provider brand names where appropriate.
 - Preserve existing settings behavior, AI provider behavior, ribbon behavior, memory modal behavior, privacy constraints, and release metadata.
 - Keep generated release files in sync with TypeScript source changes.
+
+### 15.20 Obsidian ReviewBot Sentence-case Follow-up
+
+Address the latest sentence-case-only ObsidianReviewBot feedback for the community plugin submission:
+
+- Update the flagged journal tags placeholder to sentence case.
+- Update flagged OpenAI-facing settings UI text to sentence case as required by the automated scanner.
+- Preserve the stored provider value `openai`, request behavior, selected-provider key behavior, AI privacy constraints, and existing release metadata.
+- Keep TypeScript source, generated release files, smoke tests, and documentation consistent.
