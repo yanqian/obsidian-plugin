@@ -481,7 +481,7 @@ export default class GentleMemoriesPlugin extends Plugin {
     const apiKey = this.getSelectedApiKey();
 
     if (!apiKey) {
-      new Notice(`Add a ${this.getSelectedProviderName()} API key in Gentle Memories settings to generate a reading prompt.`);
+      new Notice(`Add ${this.getSelectedProviderArticle()} ${this.getSelectedProviderName()} API key in settings to generate a reading prompt.`);
       return null;
     }
 
@@ -514,7 +514,7 @@ export default class GentleMemoriesPlugin extends Plugin {
         throw new Error(`AI request failed with ${response.status}`);
       }
 
-      const reflection = await this.readReflection(response);
+      const reflection = this.readReflection(response);
 
       if (!reflection) {
         throw new Error("AI response did not include reflection text");
@@ -552,7 +552,11 @@ export default class GentleMemoriesPlugin extends Plugin {
     return this.settings.aiProvider === "claude" ? "Claude" : "OpenAI";
   }
 
-  private async requestReflection(excerpt: string, apiKey: string): Promise<RequestUrlResponse> {
+  private getSelectedProviderArticle(): string {
+    return this.settings.aiProvider === "claude" ? "a" : "an";
+  }
+
+  private requestReflection(excerpt: string, apiKey: string): Promise<RequestUrlResponse> {
     const systemPrompt = [
       "Write 1 to 3 short sentences in the same primary language as the excerpt.",
       "Create a warm lead-in that makes the user interested in rereading the note.",
@@ -611,7 +615,7 @@ export default class GentleMemoriesPlugin extends Plugin {
     });
   }
 
-  private async readReflection(response: RequestUrlResponse): Promise<string | undefined> {
+  private readReflection(response: RequestUrlResponse): string | undefined {
     if (this.settings.aiProvider === "claude") {
       const data = response.json as ClaudeReflectionResponse;
       return data.content
@@ -794,7 +798,7 @@ class GentleMemoriesSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     new Setting(containerEl)
-      .setName("Gentle Memories")
+      .setName("Memory reminders")
       .setHeading();
 
     new Setting(containerEl)
@@ -840,7 +844,7 @@ class GentleMemoriesSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName("Enable AI")
+      .setName("Enable AI lead-in")
       .addToggle((toggle) => {
         toggle
           .setValue(this.plugin.settings.aiEnabled)
@@ -891,7 +895,7 @@ class GentleMemoriesSettingTab extends PluginSettingTab {
     }
 
     new Setting(containerEl)
-      .setName("Cache AI responses")
+      .setName("Cache AI lead-ins")
       .addToggle((toggle) => {
         toggle
           .setValue(this.plugin.settings.cacheAiResponses)

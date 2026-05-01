@@ -116,11 +116,11 @@ Available plugin settings:
 - `Journal tags`: comma-separated tags used to identify journal notes.
 - `Show on startup`: whether to show a memory after Obsidian starts.
 - `Minimum days between startup shows`: startup display cooldown.
-- `Enable AI`: controls whether the AI reading prompt button appears.
+- `Enable AI lead-in`: controls whether the AI reading prompt button appears.
 - `AI provider`: `OpenAI` or `Claude`.
 - `OpenAI API key`: token used only when OpenAI is selected.
 - `Claude API key`: token used only when Claude is selected.
-- `Cache AI responses`: stores generated reading prompts by `${path}:${contentHash}`.
+- `Cache AI lead-ins`: stores generated reading prompts by `${path}:${contentHash}`.
 
 Existing saved `apiKey` values from earlier versions are treated as `OpenAI API key`.
 

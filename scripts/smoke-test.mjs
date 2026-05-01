@@ -80,8 +80,20 @@ if (!mainSource.includes(".setHeading()")) {
   throw new Error("settings tab heading must use Setting.setHeading()");
 }
 
+if (mainSource.includes('.setName("Gentle Memories")')) {
+  throw new Error("settings tab heading must not use the plugin name");
+}
+
 if (mainSource.includes('containerEl.createEl("h2", { text: "Gentle Memories" })')) {
   throw new Error("settings tab must not create a heading element directly");
+}
+
+if (mainSource.includes("private async readReflection")) {
+  throw new Error("AI response parsing must not be marked async when it does not await");
+}
+
+if (mainSource.includes("private async requestReflection")) {
+  throw new Error("AI request builder must not be marked async when it does not await");
 }
 
 if (!mainSource.includes("id: SHOW_MEMORY_COMMAND_ID") || !mainSource.includes("name: SHOW_MEMORY_COMMAND_NAME")) {
@@ -92,11 +104,11 @@ const requiredSettingNames = [
   "Journal tags",
   "Show on startup",
   "Minimum days between startup shows",
-  "Enable AI",
+  "Enable AI lead-in",
   "AI provider",
   "OpenAI API key",
   "Claude API key",
-  "Cache AI responses",
+  "Cache AI lead-ins",
   "Debug mode"
 ];
 
@@ -1067,7 +1079,7 @@ if (notices.length !== 0) {
 
 await clickModalButton("Memories");
 
-if (!notices.includes("Add a OpenAI API key in Gentle Memories settings to generate a reading prompt.")) {
+if (!notices.includes("Add an OpenAI API key in settings to generate a reading prompt.")) {
   throw new Error("Manual Memories click without a selected provider API key must show the missing-key notice");
 }
 

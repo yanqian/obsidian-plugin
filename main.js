@@ -351,7 +351,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   async generateReflection(memory) {
     const apiKey = this.getSelectedApiKey();
     if (!apiKey) {
-      new import_obsidian.Notice(`Add a ${this.getSelectedProviderName()} API key in Gentle Memories settings to generate a reading prompt.`);
+      new import_obsidian.Notice(`Add ${this.getSelectedProviderArticle()} ${this.getSelectedProviderName()} API key in settings to generate a reading prompt.`);
       return null;
     }
     const cacheKey = this.getAiCacheKey(memory);
@@ -376,7 +376,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       if (response.status < 200 || response.status >= 300) {
         throw new Error(`AI request failed with ${response.status}`);
       }
-      const reflection = await this.readReflection(response);
+      const reflection = this.readReflection(response);
       if (!reflection) {
         throw new Error("AI response did not include reflection text");
       }
@@ -406,7 +406,10 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   getSelectedProviderName() {
     return this.settings.aiProvider === "claude" ? "Claude" : "OpenAI";
   }
-  async requestReflection(excerpt, apiKey) {
+  getSelectedProviderArticle() {
+    return this.settings.aiProvider === "claude" ? "a" : "an";
+  }
+  requestReflection(excerpt, apiKey) {
     const systemPrompt = [
       "Write 1 to 3 short sentences in the same primary language as the excerpt.",
       "Create a warm lead-in that makes the user interested in rereading the note.",
@@ -462,7 +465,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       })
     });
   }
-  async readReflection(response) {
+  readReflection(response) {
     var _a, _b, _c, _d, _e, _f, _g;
     if (this.settings.aiProvider === "claude") {
       const data2 = response.json;
@@ -593,7 +596,7 @@ var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian.Setting(containerEl).setName("Gentle Memories").setHeading();
+    new import_obsidian.Setting(containerEl).setName("Memory reminders").setHeading();
     new import_obsidian.Setting(containerEl).setName("Journal tags").setDesc("Comma-separated tags used to identify journal notes.").addText((text) => {
       text.setPlaceholder("journal, diary, note").setValue(this.plugin.settings.journalTags.join(", ")).onChange(async (value) => {
         this.plugin.settings.journalTags = normalizeJournalTags(value.split(","));
@@ -616,7 +619,7 @@ var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian.Setting(containerEl).setName("Enable AI").addToggle((toggle) => {
+    new import_obsidian.Setting(containerEl).setName("Enable AI lead-in").addToggle((toggle) => {
       toggle.setValue(this.plugin.settings.aiEnabled).onChange(async (value) => {
         this.plugin.settings.aiEnabled = value;
         await this.plugin.saveSettings();
@@ -648,7 +651,7 @@ var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
         });
       });
     }
-    new import_obsidian.Setting(containerEl).setName("Cache AI responses").addToggle((toggle) => {
+    new import_obsidian.Setting(containerEl).setName("Cache AI lead-ins").addToggle((toggle) => {
       toggle.setValue(this.plugin.settings.cacheAiResponses).onChange(async (value) => {
         this.plugin.settings.cacheAiResponses = value;
         await this.plugin.saveSettings();

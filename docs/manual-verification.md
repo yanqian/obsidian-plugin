@@ -54,12 +54,12 @@ Use a disposable Obsidian vault with this plugin installed from the repository r
    - Expected: no memory modal appears automatically.
 
 8. Enable AI without the selected provider API key; click `Memories`; confirm the missing-key notice appears.
-   - Setup: enable AI, choose OpenAI or Claude, leave that provider's API key empty, and keep one eligible note.
+   - Setup: turn on `Enable AI lead-in`, choose OpenAI or Claude, leave that provider's API key empty, and keep one eligible note.
    - Run: show a memory, confirm no automatic AI request or missing-key notice occurs, then click `Memories`.
    - Expected: the modal shows the `Memories` button, the click shows a missing provider API key notice, and no reading prompt request succeeds.
 
 9. Keep AI disabled; confirm no AI button appears.
-   - Setup: turn off `Enable AI`.
+   - Setup: turn off `Enable AI lead-in`.
    - Run: show a memory.
    - Expected: the modal has no `Memories` button.
 
