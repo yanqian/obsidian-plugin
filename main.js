@@ -351,7 +351,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   async generateReflection(memory) {
     const apiKey = this.getSelectedApiKey();
     if (!apiKey) {
-      new import_obsidian.Notice(`Add ${this.getSelectedProviderArticle()} ${this.getSelectedProviderName()} API key in settings to generate a reading prompt.`);
+      new import_obsidian.Notice(`Add ${this.getSelectedProviderArticle()} ${this.getSelectedProviderKeyLabel()} in settings to generate a reading prompt.`);
       return null;
     }
     const cacheKey = this.getAiCacheKey(memory);
@@ -405,6 +405,9 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   }
   getSelectedProviderName() {
     return this.settings.aiProvider === "claude" ? "Claude" : "OpenAI";
+  }
+  getSelectedProviderKeyLabel() {
+    return this.settings.aiProvider === "claude" ? "Claude API key" : "OpenAI key";
   }
   getSelectedProviderArticle() {
     return this.settings.aiProvider === "claude" ? "a" : "an";
@@ -598,7 +601,7 @@ var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
     containerEl.empty();
     new import_obsidian.Setting(containerEl).setName("Memory reminders").setHeading();
     new import_obsidian.Setting(containerEl).setName("Journal tags").setDesc("Comma-separated tags used to identify journal notes.").addText((text) => {
-      text.setPlaceholder("journal, diary, note").setValue(this.plugin.settings.journalTags.join(", ")).onChange(async (value) => {
+      text.setPlaceholder("Journal, diary, note").setValue(this.plugin.settings.journalTags.join(", ")).onChange(async (value) => {
         this.plugin.settings.journalTags = normalizeJournalTags(value.split(","));
         await this.plugin.saveSettings();
       });
@@ -642,7 +645,7 @@ var GentleMemoriesSettingTab = class extends import_obsidian.PluginSettingTab {
         });
       });
     } else {
-      new import_obsidian.Setting(containerEl).setName("OpenAI API key").addText((text) => {
+      new import_obsidian.Setting(containerEl).setName("OpenAI key").addText((text) => {
         var _a;
         text.inputEl.type = "password";
         text.setValue((_a = this.plugin.settings.openAiApiKey) != null ? _a : "").onChange(async (value) => {

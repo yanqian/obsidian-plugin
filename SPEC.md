@@ -177,7 +177,7 @@ Settings UI requirements:
 - Show a numeric input for minimum days between startup displays.
 - Show a toggle for AI.
 - Show an AI provider selector for OpenAI or Claude.
-- Show a password-style input for OpenAI API key.
+- Show a password-style input for OpenAI key.
 - Show a password-style input for Claude API key.
 - Show a toggle for AI response caching.
 - Persist settings through Obsidian plugin data APIs.
@@ -405,7 +405,7 @@ Follow repository execution rules in `AGENTS.md`. If a harness exists, update an
 The settings UI must make the selected AI provider and API key fields feel linked:
 
 - Keep the existing `aiProvider` setting with OpenAI and Claude options.
-- When `aiProvider` is `openai`, show only the OpenAI API key input.
+- When `aiProvider` is `openai`, show only the OpenAI key input.
 - When `aiProvider` is `claude`, show only the Claude API key input.
 - Switching providers must refresh the settings UI immediately.
 - Hidden provider API keys must remain saved and must not be cleared automatically.

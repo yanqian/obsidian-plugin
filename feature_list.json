@@ -317,9 +317,9 @@
     {
       "id": "F040",
       "description": "Address latest ObsidianReviewBot sentence-case feedback by updating the flagged journal tags placeholder and OpenAI-facing settings UI text while preserving provider behavior.",
-      "passes": false,
-      "status": "todo",
-      "attempts": 0,
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
       "last_error": ""
     }
   ]

@@ -118,11 +118,11 @@ Available plugin settings:
 - `Minimum days between startup shows`: startup display cooldown.
 - `Enable AI lead-in`: controls whether the AI reading prompt button appears.
 - `AI provider`: `OpenAI` or `Claude`.
-- `OpenAI API key`: token used only when OpenAI is selected.
+- `OpenAI key`: token used only when OpenAI is selected.
 - `Claude API key`: token used only when Claude is selected.
 - `Cache AI lead-ins`: stores generated reading prompts by `${path}:${contentHash}`.
 
-Existing saved `apiKey` values from earlier versions are treated as `OpenAI API key`.
+Existing saved `apiKey` values from earlier versions are treated as `OpenAI key`.
 
 ## AI Behavior
 

@@ -481,7 +481,7 @@ export default class GentleMemoriesPlugin extends Plugin {
     const apiKey = this.getSelectedApiKey();
 
     if (!apiKey) {
-      new Notice(`Add ${this.getSelectedProviderArticle()} ${this.getSelectedProviderName()} API key in settings to generate a reading prompt.`);
+      new Notice(`Add ${this.getSelectedProviderArticle()} ${this.getSelectedProviderKeyLabel()} in settings to generate a reading prompt.`);
       return null;
     }
 
@@ -550,6 +550,10 @@ export default class GentleMemoriesPlugin extends Plugin {
 
   private getSelectedProviderName(): string {
     return this.settings.aiProvider === "claude" ? "Claude" : "OpenAI";
+  }
+
+  private getSelectedProviderKeyLabel(): string {
+    return this.settings.aiProvider === "claude" ? "Claude API key" : "OpenAI key";
   }
 
   private getSelectedProviderArticle(): string {
@@ -806,7 +810,7 @@ class GentleMemoriesSettingTab extends PluginSettingTab {
       .setDesc("Comma-separated tags used to identify journal notes.")
       .addText((text) => {
         text
-          .setPlaceholder("journal, diary, note")
+          .setPlaceholder("Journal, diary, note")
           .setValue(this.plugin.settings.journalTags.join(", "))
           .onChange(async (value) => {
             this.plugin.settings.journalTags = normalizeJournalTags(value.split(","));
@@ -882,7 +886,7 @@ class GentleMemoriesSettingTab extends PluginSettingTab {
         });
     } else {
       new Setting(containerEl)
-        .setName("OpenAI API key")
+        .setName("OpenAI key")
         .addText((text) => {
           text.inputEl.type = "password";
           text

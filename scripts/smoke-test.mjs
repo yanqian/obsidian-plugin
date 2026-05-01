@@ -106,7 +106,7 @@ const requiredSettingNames = [
   "Minimum days between startup shows",
   "Enable AI lead-in",
   "AI provider",
-  "OpenAI API key",
+  "OpenAI key",
   "Claude API key",
   "Cache AI lead-ins",
   "Debug mode"
@@ -138,6 +138,10 @@ for (const settingKey of requiredSettingKeys) {
 
 if (!mainSource.includes("text.inputEl.type = \"number\"")) {
   throw new Error("main.ts must use a numeric input for minimum days between startup shows");
+}
+
+if (!mainSource.includes('.setPlaceholder("Journal, diary, note")')) {
+  throw new Error("main.ts must use a sentence-case placeholder for journal tags");
 }
 
 if ((mainSource.match(/text\.inputEl\.type = "password"/g) ?? []).length < 2) {
@@ -886,8 +890,8 @@ const settingNames = () => providerSettingsTab.containerEl.settings.map((setting
 const providerDropdown = () => providerSettingsTab.containerEl.settings
   .find((setting) => setting.name === "AI provider")?.dropdown;
 
-if (!settingNames().includes("OpenAI API key")) {
-  throw new Error("OpenAI provider settings must show the OpenAI API key input");
+if (!settingNames().includes("OpenAI key")) {
+  throw new Error("OpenAI provider settings must show the OpenAI key input");
 }
 
 if (settingNames().includes("Claude API key")) {
@@ -901,8 +905,8 @@ if (!settingNames().includes("Claude API key")) {
   throw new Error("Claude provider settings must show the Claude API key input after switching providers");
 }
 
-if (settingNames().includes("OpenAI API key")) {
-  throw new Error("Claude provider settings must hide the OpenAI API key input after switching providers");
+if (settingNames().includes("OpenAI key")) {
+  throw new Error("Claude provider settings must hide the OpenAI key input after switching providers");
 }
 
 if (providerSettingsPlugin.settings.openAiApiKey !== "saved-openai-key") {
@@ -1079,7 +1083,7 @@ if (notices.length !== 0) {
 
 await clickModalButton("Memories");
 
-if (!notices.includes("Add an OpenAI API key in settings to generate a reading prompt.")) {
+if (!notices.includes("Add an OpenAI key in settings to generate a reading prompt.")) {
   throw new Error("Manual Memories click without a selected provider API key must show the missing-key notice");
 }
 
