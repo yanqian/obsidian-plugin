@@ -21,8 +21,21 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // main.ts
 var main_exports = {};
 __export(main_exports, {
+  canShowStartupMemoryAt: () => canShowStartupMemoryAt,
+  createContentHash: () => createContentHash,
+  createExcerpt: () => createExcerpt,
+  createMarkdownBody: () => createMarkdownBody,
+  createMarkdownPreview: () => createMarkdownPreview,
   default: () => GentleMemoriesPlugin,
-  noteHasConfiguredJournalTag: () => noteHasConfiguredJournalTag
+  deriveDate: () => deriveDate,
+  deriveTitle: () => deriveTitle,
+  normalizeDateValue: () => normalizeDateValue,
+  normalizeDisplayHistory: () => normalizeDisplayHistory,
+  normalizeJournalTags: () => normalizeJournalTags,
+  normalizeSettings: () => normalizeSettings,
+  noteHasConfiguredJournalTag: () => noteHasConfiguredJournalTag,
+  stripFrontmatter: () => stripFrontmatter,
+  toComparableTag: () => toComparableTag
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
@@ -176,6 +189,13 @@ function createContentHash(value) {
   }
   return Math.abs(hash).toString(36);
 }
+function canShowStartupMemoryAt(now, minDaysBetweenStartupShows, lastStartupMemoryShownAt) {
+  if (minDaysBetweenStartupShows <= 0 || lastStartupMemoryShownAt === void 0) {
+    return true;
+  }
+  const elapsedDays = (now - lastStartupMemoryShownAt) / MS_PER_DAY;
+  return elapsedDays >= minDaysBetweenStartupShows;
+}
 var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   constructor() {
     super(...arguments);
@@ -287,11 +307,11 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     });
   }
   canShowStartupMemory(now) {
-    if (this.settings.minDaysBetweenStartupShows <= 0 || this.lastStartupMemoryShownAt === void 0) {
-      return true;
-    }
-    const elapsedDays = (now - this.lastStartupMemoryShownAt) / MS_PER_DAY;
-    return elapsedDays >= this.settings.minDaysBetweenStartupShows;
+    return canShowStartupMemoryAt(
+      now,
+      this.settings.minDaysBetweenStartupShows,
+      this.lastStartupMemoryShownAt
+    );
   }
   async recordStartupMemoryShown(shownAt) {
     this.lastStartupMemoryShownAt = shownAt;

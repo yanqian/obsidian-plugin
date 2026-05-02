@@ -12,10 +12,13 @@ if (!Array.isArray(featureList.features)) {
 
 for (const requiredSnippet of [
   "## Completion Rules",
-  "## Smoke Test Expectations",
+  "## Layered Test Expectations",
   "## Feature Coverage",
   "passes=true",
   "npm run build",
+  "npm run test:unit",
+  "npm run test:harness",
+  "npm run test:contract",
   "npm run smoke"
 ]) {
   if (!testPlan.includes(requiredSnippet)) {
@@ -62,8 +65,8 @@ for (const feature of completedFeatures) {
   }
 
   const combinedEvidence = `${coverage.coverageType} ${coverage.evidence}`;
-  if (!/\b(Build|Smoke|Manual|CI|Verifier|verifier)\b/.test(combinedEvidence)) {
-    throw new Error(`Coverage row for ${feature.id} must cite build, smoke, manual, CI, or verifier evidence.`);
+  if (!/\b(Build|Unit|Harness|Smoke|Contract|Manual|CI|Verifier|verifier)\b/.test(combinedEvidence)) {
+    throw new Error(`Coverage row for ${feature.id} must cite build, unit, harness, smoke, contract, manual, CI, or verifier evidence.`);
   }
 }
 

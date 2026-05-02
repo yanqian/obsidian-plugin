@@ -19,27 +19,8 @@ if [ ! -d node_modules ]; then
 fi
 
 npm run build
-
-SMOKE_PORT="${SMOKE_PORT:-4173}"
-export SMOKE_PORT
-
-node scripts/smoke-server.mjs &
-SERVER_PID="$!"
-
-cleanup() {
-  kill "$SERVER_PID" >/dev/null 2>&1 || true
-}
-trap cleanup EXIT
-
-for _ in 1 2 3 4 5; do
-  if node -e "fetch('http://127.0.0.1:' + process.env.SMOKE_PORT + '/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; then
-    break
-  fi
-  sleep 1
-done
-
-npm run smoke
-npm run verify:manual-plan
-npm run verify:test-plan
+npm run test:unit
+npm run test:harness
+npm run test:contract
 
 echo "Project initialized successfully."

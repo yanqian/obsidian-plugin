@@ -88,11 +88,11 @@ const CLAUDE_REFLECTION_MODEL = "claude-3-5-haiku-latest";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const RICH_MEMORY_PREVIEW_CHARACTERS = 240;
 
-function toComparableTag(tag: string): string {
+export function toComparableTag(tag: string): string {
   return tag.trim().replace(/^#/, "").toLowerCase();
 }
 
-function normalizeJournalTags(value: unknown): string[] {
+export function normalizeJournalTags(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [...DEFAULT_SETTINGS.journalTags];
   }
@@ -116,7 +116,7 @@ export function noteHasConfiguredJournalTag(cache: CachedMetadata | null, journa
   return noteTags.some((tag) => configuredTags.has(tag));
 }
 
-function normalizeSettings(value: unknown): PluginSettings {
+export function normalizeSettings(value: unknown): PluginSettings {
   const saved = value && typeof value === "object" ? value as Partial<PluginSettings> : {};
   const minDays = Number(saved.minDaysBetweenStartupShows);
   const legacyApiKey = typeof (saved as { apiKey?: unknown }).apiKey === "string"
@@ -146,7 +146,7 @@ function normalizeSettings(value: unknown): PluginSettings {
   };
 }
 
-function normalizeDisplayHistory(value: unknown): DisplayHistory {
+export function normalizeDisplayHistory(value: unknown): DisplayHistory {
   const saved = value && typeof value === "object" ? value as Partial<DisplayHistory> : {};
   const shown: DisplayHistory["shown"] = {};
   const aiCache: DisplayHistory["aiCache"] = {};
@@ -186,7 +186,7 @@ function normalizeDisplayHistory(value: unknown): DisplayHistory {
   return { shown, aiCache };
 }
 
-function deriveTitle(file: TFile): string {
+export function deriveTitle(file: TFile): string {
   const basename = typeof file.basename === "string" && file.basename.trim() !== ""
     ? file.basename
     : file.path.split("/").pop()?.replace(/\.md$/i, "");
@@ -194,7 +194,7 @@ function deriveTitle(file: TFile): string {
   return basename ?? file.path;
 }
 
-function deriveDate(file: TFile, cache: CachedMetadata | null): string | undefined {
+export function deriveDate(file: TFile, cache: CachedMetadata | null): string | undefined {
   const frontmatterDate = normalizeDateValue(cache?.frontmatter?.date);
 
   if (frontmatterDate) {
@@ -210,7 +210,7 @@ function deriveDate(file: TFile, cache: CachedMetadata | null): string | undefin
   return normalizeDateValue(file.stat?.ctime);
 }
 
-function normalizeDateValue(value: unknown): string | undefined {
+export function normalizeDateValue(value: unknown): string | undefined {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return value.toISOString().slice(0, 10);
   }
@@ -226,7 +226,7 @@ function normalizeDateValue(value: unknown): string | undefined {
   return value.match(/\d{4}-\d{2}-\d{2}/)?.[0];
 }
 
-function createExcerpt(markdown: string): string {
+export function createExcerpt(markdown: string): string {
   const withoutFrontmatter = stripFrontmatter(markdown);
   const withoutComments = withoutFrontmatter.replace(/%%[\s\S]*?%%/g, "");
   const withoutHeadings = withoutComments.replace(/^\s{0,3}#{1,6}\s.*$/gm, "");
@@ -238,15 +238,15 @@ function createExcerpt(markdown: string): string {
   return withoutTagOnlyLines.replace(/\s+/g, " ").trim().slice(0, 200).trim();
 }
 
-function stripFrontmatter(markdown: string): string {
+export function stripFrontmatter(markdown: string): string {
   return markdown.replace(/^---\s*\n[\s\S]*?\n---\s*/, "");
 }
 
-function createMarkdownBody(markdown: string): string {
+export function createMarkdownBody(markdown: string): string {
   return stripFrontmatter(markdown).trim();
 }
 
-function createMarkdownPreview(markdown: string): string {
+export function createMarkdownPreview(markdown: string): string {
   if (markdown.length <= RICH_MEMORY_PREVIEW_CHARACTERS) {
     return markdown;
   }
@@ -260,7 +260,7 @@ function createMarkdownPreview(markdown: string): string {
   return `${preview.trim()}\n\n...`;
 }
 
-function createContentHash(value: string): string {
+export function createContentHash(value: string): string {
   let hash = 0;
 
   for (const character of value) {
@@ -268,6 +268,19 @@ function createContentHash(value: string): string {
   }
 
   return Math.abs(hash).toString(36);
+}
+
+export function canShowStartupMemoryAt(
+  now: number,
+  minDaysBetweenStartupShows: number,
+  lastStartupMemoryShownAt: number | undefined
+): boolean {
+  if (minDaysBetweenStartupShows <= 0 || lastStartupMemoryShownAt === undefined) {
+    return true;
+  }
+
+  const elapsedDays = (now - lastStartupMemoryShownAt) / MS_PER_DAY;
+  return elapsedDays >= minDaysBetweenStartupShows;
 }
 
 export default class GentleMemoriesPlugin extends Plugin {
@@ -402,12 +415,11 @@ export default class GentleMemoriesPlugin extends Plugin {
   }
 
   private canShowStartupMemory(now: number): boolean {
-    if (this.settings.minDaysBetweenStartupShows <= 0 || this.lastStartupMemoryShownAt === undefined) {
-      return true;
-    }
-
-    const elapsedDays = (now - this.lastStartupMemoryShownAt) / MS_PER_DAY;
-    return elapsedDays >= this.settings.minDaysBetweenStartupShows;
+    return canShowStartupMemoryAt(
+      now,
+      this.settings.minDaysBetweenStartupShows,
+      this.lastStartupMemoryShownAt
+    );
   }
 
   private async recordStartupMemoryShown(shownAt: number): Promise<void> {

@@ -5,14 +5,20 @@ This file is the durable coverage index for `feature_list.json`. A feature may o
 ## Completion Rules
 
 - Code compiles through `npm run build`.
-- Existing smoke tests pass through `npm run smoke`.
+- Pure plugin logic passes through `npm run test:unit`.
+- Mock-Obsidian behavior checks pass through `npm run test:harness`.
+- Contract checks pass through `npm run test:contract`.
+- Existing smoke compatibility checks pass through `npm run smoke`, which remains an alias for the harness layer.
 - Manual or human-style flows are documented when behavior requires Obsidian interaction that cannot be fully exercised in the smoke harness.
 - CI-sensitive changes include build or workflow evidence.
 - Every feature with `passes=true` in `feature_list.json` has a row in the coverage table below before it is considered complete.
 
-## Smoke Test Expectations
+## Layered Test Expectations
 
-The smoke suite must keep validating the local-install manifest, command registration, settings behavior, memory discovery, startup gates, modal controls, display history, AI disabled and missing-key behavior, request payload privacy, cache keys, note filtering, Markdown rendering, compact long-note previews, AI lead-in loading and stale-result handling, release metadata, and ReviewBot text regressions.
+- The unit layer must validate pure plugin logic, including tag normalization, tag matching, date normalization, excerpt generation, Markdown preview generation, content hashing, settings normalization, display history normalization, and startup cooldown calculations.
+- The harness layer must keep validating the local-install manifest, command registration, settings behavior, memory discovery, startup gates, modal controls, display history, AI disabled and missing-key behavior, request payload privacy, cache keys, note filtering, Markdown rendering, compact long-note previews, AI lead-in loading and stale-result handling, release metadata, and ReviewBot text regressions.
+- The contract layer must run the manual-plan verifier and this test-plan coverage verifier together.
+- The smoke command must remain a compatibility alias for the harness layer.
 
 ## Feature Coverage
 
@@ -60,13 +66,15 @@ The smoke suite must keep validating the local-install manifest, command registr
 | F040 | Smoke | `npm run smoke` verifies the journal tags placeholder and Openai-facing settings UI text. |
 | F041 | Smoke | `npm run smoke` verifies scanner-compatible `Openai` casing while preserving internal provider behavior. |
 | F042 | Verifier | `npm run verify:test-plan` checks every `passes=true` feature has a coverage row in this file. |
+| F043 | Unit + harness + contract | `npm run test:unit`, `npm run test:harness`, and `npm run test:contract` verify explicit test layers and `./init.sh` runs them after build. |
 
 ## Verifier
 
-Run the automated coverage gate after editing this file:
+Run the automated coverage gate after editing this file, or run the full contract layer:
 
 ```bash
 npm run verify:test-plan
+npm run test:contract
 ```
 
-`./init.sh` also runs the verifier so completed features cannot silently lose coverage evidence.
+`./init.sh` also runs build, unit, harness, and contract checks so completed features cannot silently lose coverage evidence.
