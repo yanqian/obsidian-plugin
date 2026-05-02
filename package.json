@@ -8,7 +8,8 @@
     "dev": "node esbuild.config.mjs",
     "serve:smoke": "node scripts/smoke-server.mjs",
     "smoke": "node scripts/smoke-test.mjs",
-    "verify:manual-plan": "node scripts/verify-manual-plan.mjs"
+    "verify:manual-plan": "node scripts/verify-manual-plan.mjs",
+    "verify:test-plan": "node scripts/verify-test-plan.mjs"
   },
   "keywords": [
     "obsidian",

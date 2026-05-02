@@ -40,5 +40,6 @@ done
 
 npm run smoke
 npm run verify:manual-plan
+npm run verify:test-plan
 
 echo "Project initialized successfully."
