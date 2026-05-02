@@ -616,3 +616,14 @@ Address the remaining sentence-case risk in OpenAI-facing user-visible settings 
 - Preserve internal provider IDs, setting field names, constants, API endpoints, request headers, saved settings migration, and request behavior.
 - Keep Claude-facing UI text and behavior unchanged unless needed for consistency.
 - Keep TypeScript source, generated release files, smoke tests, and documentation consistent.
+
+### 15.22 Test Plan Coverage Gate
+
+Add a durable test plan file that makes feature completion criteria and coverage explicit:
+
+- Add a root `test_plan.md` file.
+- Include completion rules that say a feature can only be marked `passes=true` when code compiles, relevant automated tests pass, relevant human-style flows are covered, and existing smoke tests do not regress.
+- Include smoke test expectations and a feature coverage table mapping completed feature IDs to build, smoke, manual, CI, or other verification evidence.
+- Add an automated verifier that checks every `passes=true` feature in `feature_list.json` has a coverage entry in `test_plan.md`.
+- Run the test-plan verifier from `./init.sh`.
+- Keep the test plan human-readable while making it strict enough to prevent completed features without test coverage notes.

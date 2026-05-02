@@ -329,6 +329,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F042",
+      "description": "Add a root test_plan.md and automated verifier so every completed feature has explicit test coverage evidence before passes=true.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
     }
   ]
 }
