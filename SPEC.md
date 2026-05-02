@@ -627,3 +627,15 @@ Add a durable test plan file that makes feature completion criteria and coverage
 - Add an automated verifier that checks every `passes=true` feature in `feature_list.json` has a coverage entry in `test_plan.md`.
 - Run the test-plan verifier from `./init.sh`.
 - Keep the test plan human-readable while making it strict enough to prevent completed features without test coverage notes.
+
+### 15.23 Layered Automated Test Structure
+
+Implement the project test structure as three explicit layers:
+
+- Add a `unit` test layer for pure plugin logic such as tag normalization, tag matching, date normalization, excerpt generation, Markdown preview generation, content hashing, settings normalization, display history normalization, and startup cooldown calculations.
+- Extract or expose the required pure logic from `main.ts` without changing plugin behavior.
+- Add a `harness` test layer that keeps the existing mock-Obsidian plugin behavior checks available through a dedicated script name instead of only the generic smoke entry.
+- Add a `contract` test layer that runs the existing manual-plan verifier and test-plan coverage verifier together.
+- Keep `smoke` as a compatibility alias for the existing mock-Obsidian harness.
+- Update `./init.sh` so the full validation path runs build, unit, harness, and contract checks.
+- Update `test_plan.md` so completion rules and feature coverage describe the new layered structure.

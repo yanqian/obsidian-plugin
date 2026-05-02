@@ -337,6 +337,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F043",
+      "description": "Implement explicit unit, harness, and contract test layers, wire them into init.sh, and update the test plan coverage model.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
     }
   ]
 }
