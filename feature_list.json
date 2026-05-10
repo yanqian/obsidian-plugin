@@ -361,6 +361,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F046",
+      "description": "Fix expanded memory view scrolling on iOS/mobile by adding a reliable scroll layout, preserving sensible scroll positions after Show more/Show less, and covering scrollability in tests.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
     }
   ]
 }

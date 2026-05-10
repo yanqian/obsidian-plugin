@@ -669,3 +669,15 @@ Fix the first memory view usability issues found during iOS testing:
 - Markdown rendering for the memory view must avoid stale asynchronous renders overriding the latest expanded or collapsed state.
 - Preserve the existing startup modal, command palette modal, memory selection, display history, AI lead-in, AI privacy, cache, and release metadata behavior unless directly required by this fix.
 - Add harness coverage for memory view tab placement and memory view `Show more` or `Show less` expansion behavior.
+
+### 15.26 Memory View Expanded Scrolling Fix
+
+Fix the remaining expanded memory view scrolling issues found on iOS:
+
+- Expanded memory view content must be vertically scrollable when the note body is taller than the visible workspace tab.
+- Collapsed memory view content must remain constrained to a compact preview without preventing the whole memory tab from scrolling.
+- The memory view layout should use an explicit scroll container or equivalent CSS so Obsidian desktop, mobile, and iOS WebView can scroll long rendered Markdown reliably.
+- After `Show more`, keep the user in a reasonable reading position, such as near the original note section or the top of the expanded note content.
+- After `Show less`, keep the compact preview and action controls reachable without trapping the user in an off-screen scroll position.
+- Preserve existing memory selection, tab reuse, AI lead-in, async Markdown stale-render protection, modal flows, and privacy behavior.
+- Add automated coverage that verifies the memory view has scrollable layout styles and that expanded and collapsed states use the intended scroll and preview classes.
