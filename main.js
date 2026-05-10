@@ -280,14 +280,25 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     return this.settings.aiEnabled && Boolean(this.getSelectedApiKey());
   }
   async getTodayMemoryLeaf() {
-    const existingLeaf = this.app.workspace.getLeavesOfType(TODAY_MEMORY_VIEW_TYPE)[0];
-    const leaf = existingLeaf != null ? existingLeaf : this.app.workspace.getRightLeaf(false);
+    const existingLeaves = this.app.workspace.getLeavesOfType(TODAY_MEMORY_VIEW_TYPE);
+    const existingLeaf = existingLeaves.find((leaf2) => this.isMainWorkspaceLeaf(leaf2));
+    if (existingLeaf) {
+      await this.app.workspace.revealLeaf(existingLeaf);
+      return existingLeaf;
+    }
+    if (existingLeaves.length > 0) {
+      this.app.workspace.detachLeavesOfType(TODAY_MEMORY_VIEW_TYPE);
+    }
+    const leaf = this.app.workspace.getLeaf("tab");
     await leaf.setViewState({
       type: TODAY_MEMORY_VIEW_TYPE,
       active: true
     });
-    this.app.workspace.revealLeaf(leaf);
+    await this.app.workspace.revealLeaf(leaf);
     return leaf;
+  }
+  isMainWorkspaceLeaf(leaf) {
+    return leaf.getRoot() === this.app.workspace.rootSplit;
   }
   async selectMemory(excludedPath) {
     var _a;
@@ -546,6 +557,7 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
     this.plugin = plugin;
     this.reflectionLoading = false;
     this.expanded = false;
+    this.noteRenderGeneration = 0;
   }
   getViewType() {
     return TODAY_MEMORY_VIEW_TYPE;
@@ -611,13 +623,7 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
       cls: isCollapsedLongNote ? "gentle-memories-note-content gentle-memories-note-preview" : "gentle-memories-note-content"
     });
     const renderedMarkdown = this.expanded ? this.memory.markdownBody : createMarkdownPreview(this.memory.markdownBody);
-    void import_obsidian.MarkdownRenderer.render(this.app, renderedMarkdown, noteContentEl, this.memory.path, this).catch(() => {
-      var _a2, _b;
-      noteContentEl.createEl("p", {
-        cls: "gentle-memories-excerpt",
-        text: (_b = (_a2 = this.memory) == null ? void 0 : _a2.excerpt) != null ? _b : ""
-      });
-    });
+    this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
     const buttonContainer = containerEl.createDiv({ cls: "gentle-memories-buttons" });
     const buttons = new import_obsidian.Setting(buttonContainer);
     if (this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS) {
@@ -637,6 +643,27 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
       }));
     }
     this.startAutomaticReflectionLoad();
+  }
+  renderNoteMarkdown(noteContentEl, renderedMarkdown, memory) {
+    const generation = this.noteRenderGeneration + 1;
+    this.noteRenderGeneration = generation;
+    const renderTargetEl = document.createElement("div");
+    void import_obsidian.MarkdownRenderer.render(this.app, renderedMarkdown, renderTargetEl, memory.path, this).then(() => {
+      var _a;
+      if (this.noteRenderGeneration !== generation || ((_a = this.memory) == null ? void 0 : _a.path) !== memory.path) {
+        return;
+      }
+      noteContentEl.appendChild(renderTargetEl);
+    }).catch(() => {
+      var _a;
+      if (this.noteRenderGeneration !== generation || ((_a = this.memory) == null ? void 0 : _a.path) !== memory.path) {
+        return;
+      }
+      noteContentEl.createEl("p", {
+        cls: "gentle-memories-excerpt",
+        text: memory.excerpt
+      });
+    });
   }
   renderEmpty() {
     const { containerEl } = this;

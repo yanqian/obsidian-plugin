@@ -166,7 +166,11 @@ const notices = [];
 const renderedModals = [];
 const renderedViews = [];
 const openedFiles = [];
+const createdWorkspaceTabs = [];
+const createdRightLeaves = [];
 let layoutCallbacks = [];
+let delayMarkdownRendering = false;
+const pendingMarkdownRenders = [];
 
 class MockNotice {
   constructor(message) {
@@ -214,7 +218,35 @@ class MockElement {
   addClass(className) {
     this.classes.push(className);
   }
+
+  appendChild(child) {
+    if (Array.isArray(child?.texts)) {
+      this.texts.push(...child.texts);
+    }
+
+    if (Array.isArray(child?.buttons)) {
+      this.buttons.push(...child.buttons);
+    }
+
+    if (child?.buttonHandlers instanceof Map) {
+      for (const [label, handler] of child.buttonHandlers) {
+        this.buttonHandlers.set(label, handler);
+      }
+    }
+
+    if (Array.isArray(child?.classes)) {
+      this.classes.push(...child.classes);
+    }
+
+    return child;
+  }
 }
+
+globalThis.document = {
+  createElement() {
+    return new MockElement();
+  }
+};
 
 class MockModal {
   constructor(app) {
@@ -458,6 +490,8 @@ function createMockApp(entries = [{
       }
     },
     workspace: {
+      rootSplit: { location: "root" },
+      rightSplit: { location: "right" },
       viewCreators: new Map(),
       onLayoutReady(callback) {
         layoutCallbacks.push(callback);
@@ -465,10 +499,21 @@ function createMockApp(entries = [{
       getLeavesOfType(type) {
         return leaves.filter((leaf) => leaf.view?.getViewType?.() === type);
       },
-      getRightLeaf() {
+      detachLeavesOfType(type) {
+        for (let index = leaves.length - 1; index >= 0; index -= 1) {
+          if (leaves[index].view?.getViewType?.() === type) {
+            leaves.splice(index, 1);
+          }
+        }
+      },
+      createViewLeaf(location) {
         const leaf = {
           app,
+          location,
           view: undefined,
+          getRoot() {
+            return location === "tab" ? app.workspace.rootSplit : app.workspace.rightSplit;
+          },
           async setViewState(state) {
             const viewCreator = app.workspace.viewCreators.get(state.type);
 
@@ -484,10 +529,21 @@ function createMockApp(entries = [{
         leaves.push(leaf);
         return leaf;
       },
+      getRightLeaf() {
+        const leaf = this.createViewLeaf("right");
+        createdRightLeaves.push(leaf);
+        return leaf;
+      },
       revealLeaf(leaf) {
         this.revealedLeaf = leaf;
       },
-      getLeaf() {
+      getLeaf(newLeaf) {
+        if (newLeaf === "tab") {
+          const leaf = this.createViewLeaf("tab");
+          createdWorkspaceTabs.push(leaf);
+          return leaf;
+        }
+
         return {
           async openFile(file) {
             openedFiles.push(file);
@@ -508,6 +564,21 @@ Module._load = function loadWithObsidianMock(request, parent, isMain) {
       },
       MarkdownRenderer: {
         render(_app, markdown, element) {
+          if (delayMarkdownRendering) {
+            return new Promise((resolve) => {
+              pendingMarkdownRenders.push({
+                markdown,
+                complete() {
+                  if (typeof markdown === "string") {
+                    element.texts.push(markdown);
+                  }
+
+                  resolve();
+                }
+              });
+            });
+          }
+
           if (typeof markdown === "string") {
             element.texts.push(markdown);
           }
@@ -620,6 +691,17 @@ async function clickModalButton(label) {
   await flushPromises();
 }
 
+async function clickViewButton(label) {
+  const handler = renderedViews.at(-1)?.buttonHandlers.get(label);
+
+  if (typeof handler !== "function") {
+    throw new Error(`Today's memory view ${label} button must have a click handler`);
+  }
+
+  handler();
+  await flushPromises();
+}
+
 if (noteHasConfiguredJournalTag(null, configuredTags)) {
   throw new Error("Journal discovery must reject notes without metadata");
 }
@@ -704,19 +786,21 @@ renderedModals.length = 0;
 renderedViews.length = 0;
 openedFiles.length = 0;
 notices.length = 0;
+createdWorkspaceTabs.length = 0;
+createdRightLeaves.length = 0;
 showMemoryRibbonIcon.callback();
 await flushPromises();
 
 if (notices.length !== 0) {
-  throw new Error("Show memory ribbon icon must open a memory sidebar instead of a notice when notes are available");
+  throw new Error("Show memory ribbon icon must open a memory tab instead of a notice when notes are available");
 }
 
 if (renderedModals.length !== 0) {
-  throw new Error(`Show memory ribbon icon must route to the persistent sidebar view instead of the modal; rendered ${renderedModals.length} modal(s)`);
+  throw new Error(`Show memory ribbon icon must route to the persistent memory view instead of the modal; rendered ${renderedModals.length} modal(s)`);
 }
 
 if (renderedViews.length === 0) {
-  throw new Error("Show memory ribbon icon must open the Today's memory sidebar view");
+  throw new Error("Show memory ribbon icon must open the Today's memory view");
 }
 
 const sidebarView = renderedViews.at(-1);
@@ -724,18 +808,38 @@ const sidebarText = sidebarView.texts.join("\n");
 
 for (const expected of ["2024-03-15 Journal", "2024-03-14", "Original note", "A compact memory excerpt with enough detail to display."]) {
   if (!sidebarText.includes(expected)) {
-    throw new Error(`Today's memory sidebar view must render ${expected}`);
+    throw new Error(`Today's memory view must render ${expected}`);
   }
 }
 
 for (const label of ["Open note", "Refresh"]) {
   if (!sidebarView.buttons.includes(label)) {
-    throw new Error(`Today's memory sidebar view must include the ${label} action`);
+    throw new Error(`Today's memory view must include the ${label} action`);
   }
 }
 
 if (!sidebarView.classes.some((className) => className.includes("gentle-memories-sidebar-view"))) {
-  throw new Error("Today's memory sidebar view must use dedicated sidebar styling");
+  throw new Error("Today's memory view must use dedicated memory styling");
+}
+
+if (createdWorkspaceTabs.length !== 1) {
+  throw new Error("Show memory ribbon icon must open the memory view in a normal workspace tab");
+}
+
+if (createdRightLeaves.length !== 0) {
+  throw new Error("Show memory ribbon icon must not open the memory view in a right sidebar leaf");
+}
+
+const firstMemoryViewLeaf = createdWorkspaceTabs[0];
+showMemoryRibbonIcon.callback();
+await flushPromises();
+
+if (createdWorkspaceTabs.length !== 1 || createdWorkspaceTabs[0] !== firstMemoryViewLeaf) {
+  throw new Error("Show memory ribbon icon must reuse the existing memory view tab");
+}
+
+if (createdRightLeaves.length !== 0) {
+  throw new Error("Reopening the memory view must not create a right sidebar leaf");
 }
 
 if (layoutCallbacks.length !== 0) {
@@ -1247,6 +1351,102 @@ if (!longNoteModal.classes.some((className) => className.includes("gentle-memori
 if (!longNoteModal.buttons.includes("Show more")) {
   throw new Error("Collapsed rich memory display must restore Show more");
 }
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+renderedViews.length = 0;
+openedFiles.length = 0;
+createdWorkspaceTabs.length = 0;
+createdRightLeaves.length = 0;
+pendingMarkdownRenders.length = 0;
+delayMarkdownRendering = true;
+const longNoteViewPlugin = new GentleMemoriesPlugin(createMockApp([{
+  path: "Memories/2024-04-01 Journal.md",
+  date: "2024-04-01",
+  excerpt: `${longNoteStart} ${"additional sentence. ".repeat(35)} ${longNotePreviewBoundary}`,
+  extraContent: `${"Middle paragraph with [[wikilink]] and ![[image.png]]. ".repeat(45)}\n\n${longNoteEnd}`
+}]));
+longNoteViewPlugin.data = { settings: { showOnStartup: false, aiEnabled: false } };
+await longNoteViewPlugin.onload();
+longNoteViewPlugin.ribbonIcons.find((ribbonIcon) => ribbonIcon.icon === "sparkles")?.callback();
+await flushPromises();
+
+if (createdWorkspaceTabs.length !== 1 || createdRightLeaves.length !== 0) {
+  throw new Error("Long memory view must open as a normal workspace tab for expansion testing");
+}
+
+if (pendingMarkdownRenders.length !== 1) {
+  throw new Error("Long memory view should start one compact Markdown render before expansion");
+}
+
+const staleCollapsedViewRender = pendingMarkdownRenders[0];
+let longNoteView = renderedViews.at(-1);
+
+if (!longNoteView?.buttons.includes("Show more")) {
+  throw new Error("Long memory view must include Show more before expansion");
+}
+
+await clickViewButton("Show more");
+
+if (pendingMarkdownRenders.length !== 2) {
+  throw new Error("Long memory view Show more must start a full Markdown render");
+}
+
+const expandedViewRender = pendingMarkdownRenders[1];
+expandedViewRender.complete();
+await flushPromises();
+staleCollapsedViewRender.complete();
+await flushPromises();
+longNoteView = renderedViews.at(-1);
+let longNoteViewText = longNoteView.texts.join("\n");
+
+if (!longNoteViewText.includes(longNoteEnd)) {
+  throw new Error("Memory view Show more must render the full note body");
+}
+
+if (!longNoteViewText.includes(longNotePreviewBoundary)) {
+  throw new Error("Memory view Show more must reveal content beyond the compact preview");
+}
+
+if (longNoteView.classes.some((className) => className.includes("gentle-memories-note-preview"))) {
+  throw new Error("Expanded memory view must remove the constrained preview class");
+}
+
+if (!longNoteView.buttons.includes("Show less")) {
+  throw new Error("Expanded memory view must include Show less");
+}
+
+pendingMarkdownRenders.length = 0;
+await clickViewButton("Show less");
+
+if (pendingMarkdownRenders.length !== 1) {
+  throw new Error("Long memory view Show less must start a compact Markdown render");
+}
+
+pendingMarkdownRenders[0].complete();
+await flushPromises();
+longNoteView = renderedViews.at(-1);
+longNoteViewText = longNoteView.texts.join("\n");
+
+if (longNoteViewText.includes(longNoteEnd)) {
+  throw new Error("Memory view Show less must return to the compact preview");
+}
+
+if (longNoteViewText.includes(longNotePreviewBoundary)) {
+  throw new Error("Memory view Show less must hide details beyond the compact preview again");
+}
+
+if (!longNoteView.classes.some((className) => className.includes("gentle-memories-note-preview"))) {
+  throw new Error("Collapsed memory view must restore the constrained preview class");
+}
+
+if (!longNoteView.buttons.includes("Show more")) {
+  throw new Error("Collapsed memory view must restore Show more");
+}
+
+delayMarkdownRendering = false;
+pendingMarkdownRenders.length = 0;
 
 layoutCallbacks = [];
 notices.length = 0;

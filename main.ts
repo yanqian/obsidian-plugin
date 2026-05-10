@@ -383,16 +383,31 @@ export default class GentleMemoriesPlugin extends Plugin {
   }
 
   private async getTodayMemoryLeaf(): Promise<WorkspaceLeaf> {
-    const existingLeaf = this.app.workspace.getLeavesOfType(TODAY_MEMORY_VIEW_TYPE)[0];
-    const leaf = existingLeaf ?? this.app.workspace.getRightLeaf(false);
+    const existingLeaves = this.app.workspace.getLeavesOfType(TODAY_MEMORY_VIEW_TYPE);
+    const existingLeaf = existingLeaves.find((leaf) => this.isMainWorkspaceLeaf(leaf));
+
+    if (existingLeaf) {
+      await this.app.workspace.revealLeaf(existingLeaf);
+      return existingLeaf;
+    }
+
+    if (existingLeaves.length > 0) {
+      this.app.workspace.detachLeavesOfType(TODAY_MEMORY_VIEW_TYPE);
+    }
+
+    const leaf = this.app.workspace.getLeaf("tab");
 
     await leaf.setViewState({
       type: TODAY_MEMORY_VIEW_TYPE,
       active: true
     });
-    this.app.workspace.revealLeaf(leaf);
+    await this.app.workspace.revealLeaf(leaf);
 
     return leaf;
+  }
+
+  private isMainWorkspaceLeaf(leaf: WorkspaceLeaf): boolean {
+    return leaf.getRoot() === this.app.workspace.rootSplit;
   }
 
   private async selectMemory(excludedPath?: string): Promise<MemoryEntry | null> {
@@ -706,6 +721,7 @@ class TodayMemoryView extends ItemView {
   private reflectionLoading = false;
   private automaticReflectionPath: string | undefined;
   private expanded = false;
+  private noteRenderGeneration = 0;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -794,14 +810,7 @@ class TodayMemoryView extends ItemView {
       ? this.memory.markdownBody
       : createMarkdownPreview(this.memory.markdownBody);
 
-    void MarkdownRenderer
-      .render(this.app, renderedMarkdown, noteContentEl, this.memory.path, this)
-      .catch(() => {
-        noteContentEl.createEl("p", {
-          cls: "gentle-memories-excerpt",
-          text: this.memory?.excerpt ?? ""
-        });
-      });
+    this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
 
     const buttonContainer = containerEl.createDiv({ cls: "gentle-memories-buttons" });
     const buttons = new Setting(buttonContainer);
@@ -836,6 +845,32 @@ class TodayMemoryView extends ItemView {
     }
 
     this.startAutomaticReflectionLoad();
+  }
+
+  private renderNoteMarkdown(noteContentEl: HTMLElement, renderedMarkdown: string, memory: MemoryEntry): void {
+    const generation = this.noteRenderGeneration + 1;
+    this.noteRenderGeneration = generation;
+    const renderTargetEl = document.createElement("div");
+
+    void MarkdownRenderer
+      .render(this.app, renderedMarkdown, renderTargetEl, memory.path, this)
+      .then(() => {
+        if (this.noteRenderGeneration !== generation || this.memory?.path !== memory.path) {
+          return;
+        }
+
+        noteContentEl.appendChild(renderTargetEl);
+      })
+      .catch(() => {
+        if (this.noteRenderGeneration !== generation || this.memory?.path !== memory.path) {
+          return;
+        }
+
+        noteContentEl.createEl("p", {
+          cls: "gentle-memories-excerpt",
+          text: memory.excerpt
+        });
+      });
   }
 
   private renderEmpty(): void {

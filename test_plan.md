@@ -68,6 +68,7 @@ This file is the durable coverage index for `feature_list.json`. A feature may o
 | F042 | Verifier | `npm run verify:test-plan` checks every `passes=true` feature has a coverage row in this file. |
 | F043 | Unit + harness + contract | `npm run test:unit`, `npm run test:harness`, and `npm run test:contract` verify explicit test layers and `./init.sh` runs them after build. |
 | F044 | Build + harness + contract | `npm run build`, `npm run test:harness`, and `npm run test:contract` verify the registered persistent sidebar view, sparkles ribbon routing, memory rendering, actions, AI/cache/privacy preservation, and coverage gating. |
+| F045 | Build + harness + contract | `npm run build`, `npm run test:harness`, and `npm run test:contract` verify the memory view opens as a reused normal workspace tab and that delayed Markdown renders cannot override Show more or Show less state. |
 
 ## Verifier
 
