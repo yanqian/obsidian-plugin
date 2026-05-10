@@ -698,3 +698,17 @@ Fix the next memory view interaction issues found during real vault testing:
 - Memory selection should prefer never-shown notes first; after all eligible notes have been shown, it should select the least-recently-shown note while excluding the current memory when possible.
 - Preserve existing command palette modal behavior, startup modal behavior, AI lead-in behavior, privacy constraints, tab reuse, scroll behavior, and stale Markdown render protection.
 - Add harness or unit coverage for adaptive preview sizing, restored empty view cleanup, no-empty-tab manual ribbon behavior, and least-recently-shown refresh rotation.
+
+### 15.28 Progressive Memory View Reveal
+
+Improve long-note reading ergonomics in the memory view:
+
+- `Show more` in the `Today's memory` tab should progressively reveal more of the note instead of expanding the entire long note at once.
+- Each `Show more` click should add another meaningful chunk of content, roughly another screen or reading segment.
+- Keep `Show less` available after expansion begins so the user can collapse back to the initial preview.
+- When the full note has been revealed, the control text may change to indicate there is no more hidden content or the `Show more` control may disappear.
+- The memory view actions, including `Open note`, `Refresh`, and AI `Memories` when available, should remain easy to reach even when the note content is very long.
+- Prefer a sticky or otherwise always-reachable action area in the memory view so users do not need to scroll to the end of a long note before moving to another memory.
+- Preserve existing modal behavior unless a shared helper change is needed.
+- Preserve existing memory selection, tab reuse, restored-empty-view cleanup, scroll container behavior, AI lead-in behavior, privacy constraints, and stale Markdown render protection.
+- Add automated coverage for progressive reveal steps, final full reveal behavior, collapse behavior, and action accessibility for long memory view notes.

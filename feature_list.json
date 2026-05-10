@@ -377,6 +377,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F048",
+      "description": "Change memory view Show more to progressively reveal long notes and keep memory actions reachable without scrolling to the end.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
     }
   ]
 }
