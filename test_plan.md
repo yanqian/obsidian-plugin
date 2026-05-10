@@ -72,6 +72,7 @@ This file is the durable coverage index for `feature_list.json`. A feature may o
 | F046 | Build + harness + contract | `npm run build`, `npm run test:harness`, and `npm run test:contract` verify the memory view uses a scrollable mobile-safe layout, marks expanded and collapsed scroll states, and restores sensible scroll positions after Show more or Show less. |
 | F047 | Unit + harness + contract | `npm run test:unit`, `npm run test:harness`, and `npm run test:contract` verify adaptive memory view preview sizing, restored empty view cleanup, no-empty-tab ribbon behavior, and least-recently-shown refresh rotation. |
 | F048 | Unit + harness + contract | `npm run test:unit`, `npm run test:harness`, and `npm run test:contract` verify progressive memory view reveal steps, eventual full reveal, collapse behavior, stale-render protection, and sticky action accessibility. |
+| F049 | Harness + contract | `npm run test:harness` and `npm run test:contract` verify memory view action-row order, shared action membership below the note preview, state-aware AI action labels, loading disablement, duplicate-request prevention, and post-generation `Regenerate` state. |
 
 ## Verifier
 

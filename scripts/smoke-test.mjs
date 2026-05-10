@@ -194,6 +194,7 @@ class MockElement {
   constructor() {
     this.texts = [];
     this.buttons = [];
+    this.disabledButtons = [];
     this.buttonHandlers = new Map();
     this.settings = [];
     this.classes = [];
@@ -204,6 +205,7 @@ class MockElement {
   empty() {
     this.texts.length = 0;
     this.buttons.length = 0;
+    this.disabledButtons.length = 0;
     this.buttonHandlers.clear();
     this.settings.length = 0;
     this.classes.length = 0;
@@ -241,6 +243,10 @@ class MockElement {
 
     if (Array.isArray(child?.buttons)) {
       this.buttons.push(...child.buttons);
+    }
+
+    if (Array.isArray(child?.disabledButtons)) {
+      this.disabledButtons.push(...child.disabledButtons);
     }
 
     if (child?.buttonHandlers instanceof Map) {
@@ -349,6 +355,14 @@ class MockButton {
 
   onClick(callback) {
     this.element.buttonHandlers.set(this.text, callback);
+    return this;
+  }
+
+  setDisabled(disabled) {
+    if (disabled) {
+      this.element.disabledButtons.push(this.text);
+    }
+
     return this;
   }
 }
@@ -1654,8 +1668,132 @@ if (!longNoteView.buttons.includes("Show more")) {
   throw new Error("Collapsed memory view must restore Show more");
 }
 
+const noteContentSourceIndex = mainSource.indexOf("const noteContentEl = scrollContainerEl.createDiv");
+const actionRowSourceIndex = mainSource.indexOf("this.renderActionRow(scrollContainerEl");
+
+if (noteContentSourceIndex === -1 || actionRowSourceIndex === -1 || actionRowSourceIndex < noteContentSourceIndex) {
+  throw new Error("Memory view action row must render below the original note preview");
+}
+
 delayMarkdownRendering = false;
 pendingMarkdownRenders.length = 0;
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+renderedViews.length = 0;
+openedFiles.length = 0;
+createdWorkspaceTabs.length = 0;
+createdRightLeaves.length = 0;
+globalThis.fetch = async () => {
+  throw new Error("Unkeyed memory view AI action must not make a provider request");
+};
+
+try {
+  const unkeyedAiViewPlugin = new GentleMemoriesPlugin(createMockApp([{
+    path: "Memories/2024-04-02 Journal.md",
+    basename: "2024-04-02 Journal",
+    date: "2024-04-02",
+    excerpt: "Memory view AI controls should clearly describe lead-in generation."
+  }]));
+  unkeyedAiViewPlugin.data = { settings: { showOnStartup: false, aiEnabled: true } };
+  await unkeyedAiViewPlugin.onload();
+  unkeyedAiViewPlugin.ribbonIcons.find((ribbonIcon) => ribbonIcon.icon === "sparkles")?.callback();
+  await flushPromises();
+
+  const unkeyedAiView = renderedViews.at(-1);
+
+  if (!unkeyedAiView?.buttons.includes("Generate lead-in")) {
+    throw new Error("Memory view AI action must say Generate lead-in before AI content exists");
+  }
+
+  if (unkeyedAiView.buttons.includes("Memories")) {
+    throw new Error("Memory view AI action must not use the ambiguous Memories label");
+  }
+
+  await clickViewButton("Generate lead-in");
+
+  if (!notices.some((notice) => notice.includes("Add an Openai key"))) {
+    throw new Error("Unkeyed memory view Generate lead-in action must show the missing-key notice");
+  }
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+renderedViews.length = 0;
+openedFiles.length = 0;
+createdWorkspaceTabs.length = 0;
+createdRightLeaves.length = 0;
+let keyedAiViewRequestCount = 0;
+let resolveKeyedAiViewFetch;
+globalThis.fetch = async () => new Promise((resolve) => {
+  keyedAiViewRequestCount += 1;
+  resolveKeyedAiViewFetch = () => resolve({
+    ok: true,
+    status: 200,
+    async json() {
+      return {
+        choices: [{
+          message: {
+            content: "Generated memory view lead-in."
+          }
+        }]
+      };
+    }
+  });
+});
+
+try {
+  const keyedAiViewPlugin = new GentleMemoriesPlugin(createMockApp([{
+    path: "Memories/2024-04-03 Journal.md",
+    basename: "2024-04-03 Journal",
+    date: "2024-04-03",
+    excerpt: "Memory view loading controls should prevent duplicate generation requests."
+  }]));
+  keyedAiViewPlugin.data = {
+    settings: {
+      showOnStartup: false,
+      aiEnabled: true,
+      openAiApiKey: "test-api-key"
+    }
+  };
+  await keyedAiViewPlugin.onload();
+  keyedAiViewPlugin.ribbonIcons.find((ribbonIcon) => ribbonIcon.icon === "sparkles")?.callback();
+  await flushPromises();
+
+  let keyedAiView = renderedViews.at(-1);
+
+  if (!keyedAiView?.buttons.includes("Generating...")) {
+    throw new Error("Memory view AI action must say Generating... while the lead-in request is pending");
+  }
+
+  if (!keyedAiView.disabledButtons.includes("Generating...")) {
+    throw new Error("Memory view AI action must be disabled while generation is pending");
+  }
+
+  await clickViewButton("Generating...");
+
+  if (keyedAiViewRequestCount !== 1) {
+    throw new Error("Memory view AI action must avoid duplicate requests while generation is pending");
+  }
+
+  resolveKeyedAiViewFetch();
+  await flushPromises();
+  keyedAiView = renderedViews.at(-1);
+
+  if (!keyedAiView.texts.join("\n").includes("Generated memory view lead-in.")) {
+    throw new Error("Memory view must render the generated AI lead-in");
+  }
+
+  if (!keyedAiView.buttons.includes("Regenerate")) {
+    throw new Error("Memory view AI action must say Regenerate after AI content exists");
+  }
+} finally {
+  globalThis.fetch = originalFetch;
+}
 
 layoutCallbacks = [];
 notices.length = 0;

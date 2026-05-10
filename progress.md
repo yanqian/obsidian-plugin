@@ -4,17 +4,17 @@
 
 Initializer scaffold created. The project has a minimal TypeScript Obsidian plugin shell, a valid local-install Obsidian manifest, build tooling, an idempotent `init.sh`, a mock-Obsidian harness, contract verifiers, and a smoke-test helper service available through `npm run serve:smoke`.
 
-Latest implementation in progress: F048 improves long-note reading in the `Today's memory` tab. The memory view now reveals long notes in progressive chunks, keeps `Show less` available after expansion starts, removes `Show more` after the full note is visible, and keeps the view action controls in a sticky reachable area above the original note content.
+Latest implementation in progress: F049 improves memory view control clarity. The `Today's memory` view now renders the shared action row after the original note preview or progressively revealed note content, keeps the row reachable as a bottom sticky control area, and changes the view AI action label between `Generate lead-in`, `Generating...`, and `Regenerate`.
 
-F001 through F047 are complete. F048 has been implemented and is ready for evaluator verification. The root `test_plan.md` includes coverage evidence for F048 so the contract verifier can track the new unit, harness, and contract expectations.
+F001 through F048 are complete. F049 has been implemented and is ready for evaluator verification. The root `test_plan.md` includes coverage evidence for F049 so the contract verifier can track the new harness and contract expectations.
 
 ## Last completed feature
 
-F047 - Memory view density, restore, and rotation fix.
+F048 - Progressive memory view reveal and reachable actions.
 
 ## Next feature
 
-F048 - Await evaluator verification for progressive memory view reveal and reachable actions.
+F049 - Await evaluator verification for memory view action row order and AI action label clarity.
 
 ## Known issues
 

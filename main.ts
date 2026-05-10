@@ -940,12 +940,39 @@ class TodayMemoryView extends ItemView {
       });
     }
 
-    const buttonContainer = scrollContainerEl.createDiv({ cls: "gentle-memories-buttons gentle-memories-view-actions" });
-    const buttons = new Setting(buttonContainer);
     const hasLongNote = this.memory.markdownBody.length > MEMORY_VIEW_PREVIEW_CHARACTERS;
     const hasMoreHiddenContent = this.revealedCharacters < this.memory.markdownBody.length;
+    const originalNoteHeadingEl = scrollContainerEl.createEl("h3", {
+      cls: "gentle-memories-original-note-heading",
+      text: "Original note"
+    });
+    const isCollapsedLongNote = !revealStarted && hasLongNote;
+    const noteContentEl = scrollContainerEl.createDiv({
+      cls: isCollapsedLongNote
+        ? "gentle-memories-note-content gentle-memories-note-preview gentle-memories-view-note-preview"
+        : "gentle-memories-note-content"
+    });
+    const renderedMarkdown = this.revealedCharacters >= this.memory.markdownBody.length
+      ? this.memory.markdownBody
+      : revealStarted
+        ? createProgressiveMarkdownReveal(this.memory.markdownBody, this.revealedCharacters)
+        : createMarkdownPreview(this.memory.markdownBody, this.revealedCharacters);
 
-    if (hasLongNote && hasMoreHiddenContent) {
+    this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
+    this.renderActionRow(scrollContainerEl, { hasLongNote, hasMoreHiddenContent, revealStarted });
+
+    this.startAutomaticReflectionLoad();
+    this.restoreScrollPosition(options.scrollTarget, originalNoteHeadingEl);
+  }
+
+  private renderActionRow(
+    scrollContainerEl: HTMLElement,
+    state: { hasLongNote: boolean; hasMoreHiddenContent: boolean; revealStarted: boolean }
+  ): void {
+    const buttonContainer = scrollContainerEl.createDiv({ cls: "gentle-memories-buttons gentle-memories-view-actions" });
+    const buttons = new Setting(buttonContainer);
+
+    if (state.hasLongNote && state.hasMoreHiddenContent) {
       buttons.addButton((button) => button
         .setButtonText("Show more")
         .onClick(() => {
@@ -954,7 +981,7 @@ class TodayMemoryView extends ItemView {
         }));
     }
 
-    if (hasLongNote && revealStarted) {
+    if (state.hasLongNote && state.revealStarted) {
       buttons.addButton((button) => button
         .setButtonText("Show less")
         .onClick(() => {
@@ -977,32 +1004,20 @@ class TodayMemoryView extends ItemView {
 
     if (this.plugin.settings.aiEnabled) {
       buttons.addButton((button) => button
-        .setButtonText("Memories")
+        .setButtonText(this.getAiActionLabel())
+        .setDisabled(this.reflectionLoading)
         .onClick(() => {
           void this.showReflection();
         }));
     }
+  }
 
-    const originalNoteHeadingEl = scrollContainerEl.createEl("h3", {
-      cls: "gentle-memories-original-note-heading",
-      text: "Original note"
-    });
-    const isCollapsedLongNote = !revealStarted && hasLongNote;
-    const noteContentEl = scrollContainerEl.createDiv({
-      cls: isCollapsedLongNote
-        ? "gentle-memories-note-content gentle-memories-note-preview gentle-memories-view-note-preview"
-        : "gentle-memories-note-content"
-    });
-    const renderedMarkdown = this.revealedCharacters >= this.memory.markdownBody.length
-      ? this.memory.markdownBody
-      : revealStarted
-        ? createProgressiveMarkdownReveal(this.memory.markdownBody, this.revealedCharacters)
-        : createMarkdownPreview(this.memory.markdownBody, this.revealedCharacters);
+  private getAiActionLabel(): string {
+    if (this.reflectionLoading) {
+      return "Generating...";
+    }
 
-    this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
-
-    this.startAutomaticReflectionLoad();
-    this.restoreScrollPosition(options.scrollTarget, originalNoteHeadingEl);
+    return this.reflectionText ? "Regenerate" : "Generate lead-in";
   }
 
   private hasRevealStarted(): boolean {
@@ -1100,11 +1115,13 @@ class TodayMemoryView extends ItemView {
   }
 
   private async showReflection(): Promise<void> {
-    if (!this.memory) {
+    if (!this.memory || this.reflectionLoading) {
       return;
     }
 
     const memoryPath = this.memory.path;
+    this.reflectionLoading = true;
+    this.render();
     const reflection = await this.plugin.generateReflectionForView(this.memory);
 
     if (this.memory?.path !== memoryPath) {
@@ -1130,8 +1147,6 @@ class TodayMemoryView extends ItemView {
     }
 
     this.automaticReflectionPath = this.memory.path;
-    this.reflectionLoading = true;
-    this.render();
     void this.showReflection();
   }
 }

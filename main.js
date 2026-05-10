@@ -725,18 +725,33 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
         text: this.reflectionLoading ? "Loading memory lead-in..." : this.reflectionText
       });
     }
-    const buttonContainer = scrollContainerEl.createDiv({ cls: "gentle-memories-buttons gentle-memories-view-actions" });
-    const buttons = new import_obsidian.Setting(buttonContainer);
     const hasLongNote = this.memory.markdownBody.length > MEMORY_VIEW_PREVIEW_CHARACTERS;
     const hasMoreHiddenContent = this.revealedCharacters < this.memory.markdownBody.length;
-    if (hasLongNote && hasMoreHiddenContent) {
+    const originalNoteHeadingEl = scrollContainerEl.createEl("h3", {
+      cls: "gentle-memories-original-note-heading",
+      text: "Original note"
+    });
+    const isCollapsedLongNote = !revealStarted && hasLongNote;
+    const noteContentEl = scrollContainerEl.createDiv({
+      cls: isCollapsedLongNote ? "gentle-memories-note-content gentle-memories-note-preview gentle-memories-view-note-preview" : "gentle-memories-note-content"
+    });
+    const renderedMarkdown = this.revealedCharacters >= this.memory.markdownBody.length ? this.memory.markdownBody : revealStarted ? createProgressiveMarkdownReveal(this.memory.markdownBody, this.revealedCharacters) : createMarkdownPreview(this.memory.markdownBody, this.revealedCharacters);
+    this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
+    this.renderActionRow(scrollContainerEl, { hasLongNote, hasMoreHiddenContent, revealStarted });
+    this.startAutomaticReflectionLoad();
+    this.restoreScrollPosition(options.scrollTarget, originalNoteHeadingEl);
+  }
+  renderActionRow(scrollContainerEl, state) {
+    const buttonContainer = scrollContainerEl.createDiv({ cls: "gentle-memories-buttons gentle-memories-view-actions" });
+    const buttons = new import_obsidian.Setting(buttonContainer);
+    if (state.hasLongNote && state.hasMoreHiddenContent) {
       buttons.addButton((button) => button.setButtonText("Show more").onClick(() => {
-        var _a2, _b;
-        this.revealedCharacters = getNextMemoryViewRevealCharacters((_b = (_a2 = this.memory) == null ? void 0 : _a2.markdownBody) != null ? _b : "", this.revealedCharacters);
+        var _a, _b;
+        this.revealedCharacters = getNextMemoryViewRevealCharacters((_b = (_a = this.memory) == null ? void 0 : _a.markdownBody) != null ? _b : "", this.revealedCharacters);
         this.render({ scrollTarget: "note" });
       }));
     }
-    if (hasLongNote && revealStarted) {
+    if (state.hasLongNote && state.revealStarted) {
       buttons.addButton((button) => button.setButtonText("Show less").onClick(() => {
         this.revealedCharacters = MEMORY_VIEW_PREVIEW_CHARACTERS;
         this.render({ scrollTarget: "top" });
@@ -748,22 +763,16 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
       void this.showNextMemory();
     }));
     if (this.plugin.settings.aiEnabled) {
-      buttons.addButton((button) => button.setButtonText("Memories").onClick(() => {
+      buttons.addButton((button) => button.setButtonText(this.getAiActionLabel()).setDisabled(this.reflectionLoading).onClick(() => {
         void this.showReflection();
       }));
     }
-    const originalNoteHeadingEl = scrollContainerEl.createEl("h3", {
-      cls: "gentle-memories-original-note-heading",
-      text: "Original note"
-    });
-    const isCollapsedLongNote = !revealStarted && hasLongNote;
-    const noteContentEl = scrollContainerEl.createDiv({
-      cls: isCollapsedLongNote ? "gentle-memories-note-content gentle-memories-note-preview gentle-memories-view-note-preview" : "gentle-memories-note-content"
-    });
-    const renderedMarkdown = this.revealedCharacters >= this.memory.markdownBody.length ? this.memory.markdownBody : revealStarted ? createProgressiveMarkdownReveal(this.memory.markdownBody, this.revealedCharacters) : createMarkdownPreview(this.memory.markdownBody, this.revealedCharacters);
-    this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
-    this.startAutomaticReflectionLoad();
-    this.restoreScrollPosition(options.scrollTarget, originalNoteHeadingEl);
+  }
+  getAiActionLabel() {
+    if (this.reflectionLoading) {
+      return "Generating...";
+    }
+    return this.reflectionText ? "Regenerate" : "Generate lead-in";
   }
   hasRevealStarted() {
     return !!this.memory && this.revealedCharacters > MEMORY_VIEW_PREVIEW_CHARACTERS;
@@ -844,10 +853,12 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
   }
   async showReflection() {
     var _a;
-    if (!this.memory) {
+    if (!this.memory || this.reflectionLoading) {
       return;
     }
     const memoryPath = this.memory.path;
+    this.reflectionLoading = true;
+    this.render();
     const reflection = await this.plugin.generateReflectionForView(this.memory);
     if (((_a = this.memory) == null ? void 0 : _a.path) !== memoryPath) {
       return;
@@ -866,8 +877,6 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
       return;
     }
     this.automaticReflectionPath = this.memory.path;
-    this.reflectionLoading = true;
-    this.render();
     void this.showReflection();
   }
 };

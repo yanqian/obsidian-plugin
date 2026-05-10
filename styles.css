@@ -100,12 +100,12 @@
 
 .gentle-memories-view-actions {
   position: sticky;
-  top: 0;
+  bottom: 0;
   z-index: 1;
-  margin: 0.5rem 0 1rem;
+  margin: 1rem 0 0;
   padding: 0.5rem 0;
   background: var(--background-primary);
-  border-bottom: 1px solid var(--background-modifier-border);
+  border-top: 1px solid var(--background-modifier-border);
 }
 
 .gentle-memories-buttons button {
