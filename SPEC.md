@@ -712,3 +712,21 @@ Improve long-note reading ergonomics in the memory view:
 - Preserve existing modal behavior unless a shared helper change is needed.
 - Preserve existing memory selection, tab reuse, restored-empty-view cleanup, scroll container behavior, AI lead-in behavior, privacy constraints, and stale Markdown render protection.
 - Add automated coverage for progressive reveal steps, final full reveal behavior, collapse behavior, and action accessibility for long memory view notes.
+
+### 15.29 Memory View Controls and AI Action Clarity
+
+Improve the memory view control order and AI action wording:
+
+- The memory view should render content in this order: AI lead-in, `Original note` heading, original note preview or progressively revealed note content, then one shared action row.
+- Keep `Show more`, `Show less`, `Open note`, `Refresh`, and the AI action in the same action row.
+- Do not place the shared action row above the original note content.
+- The shared action row should remain reasonably reachable without forcing users to scroll to the very end of an expanded long note.
+- Replace the ambiguous `Memories` AI button in the memory view with state-aware text:
+  - `Generate lead-in` before AI content exists.
+  - `Generating...` while AI lead-in generation is in progress.
+  - `Regenerate` after AI content exists.
+- The AI action should clearly belong to the AI lead-in behavior and should not be confused with the memory page itself.
+- Avoid duplicate AI requests while generation is already in progress.
+- Preserve existing modal behavior unless a shared helper change is required.
+- Preserve existing memory selection, progressive reveal, tab reuse, restored-empty-view cleanup, scroll behavior, privacy constraints, and stale Markdown render protection.
+- Add automated coverage for action row order, shared action row membership, AI action labels, disabled/loading behavior, and post-generation `Regenerate` state.

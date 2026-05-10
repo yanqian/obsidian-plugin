@@ -385,6 +385,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F049",
+      "description": "Move the shared memory view action row below the note preview and replace the ambiguous Memories AI button with clear Generate lead-in, Generating..., and Regenerate states.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
     }
   ]
 }
