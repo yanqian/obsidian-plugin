@@ -4,17 +4,17 @@
 
 Initializer scaffold created. The project has a minimal TypeScript Obsidian plugin shell, a valid local-install Obsidian manifest, build tooling, an idempotent `init.sh`, a mock-Obsidian harness, contract verifiers, and a smoke-test helper service available through `npm run serve:smoke`.
 
-Latest implementation in progress: F047 improves the `Today's memory` tab interactions. The memory view now uses a denser view-specific collapsed Markdown preview with adaptive CSS sizing, avoids creating an empty tab when the ribbon cannot select a usable memory, quietly detaches restored empty memory views on startup, and refreshes through never-shown then least-recently-shown memories instead of bouncing between the same notes.
+Latest implementation in progress: F048 improves long-note reading in the `Today's memory` tab. The memory view now reveals long notes in progressive chunks, keeps `Show less` available after expansion starts, removes `Show more` after the full note is visible, and keeps the view action controls in a sticky reachable area above the original note content.
 
-F001 through F046 are complete. F047 has been implemented and is ready for evaluator verification. The root `test_plan.md` includes coverage evidence for F047 so the contract verifier can track the new unit, harness, and contract expectations.
+F001 through F047 are complete. F048 has been implemented and is ready for evaluator verification. The root `test_plan.md` includes coverage evidence for F048 so the contract verifier can track the new unit, harness, and contract expectations.
 
 ## Last completed feature
 
-F046 - Expanded memory view scrolling fix.
+F047 - Memory view density, restore, and rotation fix.
 
 ## Next feature
 
-F047 - Await evaluator verification for memory view density, restore, and rotation fix.
+F048 - Await evaluator verification for progressive memory view reveal and reachable actions.
 
 ## Known issues
 

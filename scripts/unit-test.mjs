@@ -34,6 +34,7 @@ const {
   createExcerpt,
   createMarkdownBody,
   createMarkdownPreview,
+  getNextMemoryViewRevealCharacters,
   deriveDate,
   deriveTitle,
   normalizeDateValue,
@@ -99,6 +100,12 @@ assert.equal(preview.includes("Hidden paragraph."), false);
 const densePreview = createMarkdownPreview(`${"Opening sentence. ".repeat(80)}\n\nHidden paragraph.`, 1000);
 assert.equal(densePreview.includes("Opening sentence."), true);
 assert.equal(densePreview.length > preview.length, true);
+const progressiveMarkdown = `${"Opening segment. ".repeat(120)}\n\n${"Second segment. ".repeat(140)}\n\nFinal detail.`;
+const firstRevealCount = getNextMemoryViewRevealCharacters(progressiveMarkdown, 1800, 900);
+assert.equal(firstRevealCount > 1800, true);
+assert.equal(firstRevealCount < progressiveMarkdown.length, true);
+const finalRevealCount = getNextMemoryViewRevealCharacters(progressiveMarkdown, progressiveMarkdown.length - 20, 900);
+assert.equal(finalRevealCount, progressiveMarkdown.length);
 
 assert.equal(createContentHash("same"), createContentHash("same"));
 assert.notEqual(createContentHash("same"), createContentHash("different"));

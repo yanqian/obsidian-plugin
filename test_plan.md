@@ -71,6 +71,7 @@ This file is the durable coverage index for `feature_list.json`. A feature may o
 | F045 | Build + harness + contract | `npm run build`, `npm run test:harness`, and `npm run test:contract` verify the memory view opens as a reused normal workspace tab and that delayed Markdown renders cannot override Show more or Show less state. |
 | F046 | Build + harness + contract | `npm run build`, `npm run test:harness`, and `npm run test:contract` verify the memory view uses a scrollable mobile-safe layout, marks expanded and collapsed scroll states, and restores sensible scroll positions after Show more or Show less. |
 | F047 | Unit + harness + contract | `npm run test:unit`, `npm run test:harness`, and `npm run test:contract` verify adaptive memory view preview sizing, restored empty view cleanup, no-empty-tab ribbon behavior, and least-recently-shown refresh rotation. |
+| F048 | Unit + harness + contract | `npm run test:unit`, `npm run test:harness`, and `npm run test:contract` verify progressive memory view reveal steps, eventual full reveal, collapse behavior, stale-render protection, and sticky action accessibility. |
 
 ## Verifier
 

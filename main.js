@@ -29,6 +29,7 @@ __export(main_exports, {
   default: () => GentleMemoriesPlugin,
   deriveDate: () => deriveDate,
   deriveTitle: () => deriveTitle,
+  getNextMemoryViewRevealCharacters: () => getNextMemoryViewRevealCharacters,
   normalizeDateValue: () => normalizeDateValue,
   normalizeDisplayHistory: () => normalizeDisplayHistory,
   normalizeJournalTags: () => normalizeJournalTags,
@@ -68,6 +69,7 @@ var CLAUDE_REFLECTION_MODEL = "claude-3-5-haiku-latest";
 var MS_PER_DAY = 24 * 60 * 60 * 1e3;
 var RICH_MEMORY_PREVIEW_CHARACTERS = 240;
 var MEMORY_VIEW_PREVIEW_CHARACTERS = 1800;
+var MEMORY_VIEW_REVEAL_STEP_CHARACTERS = 1800;
 function toComparableTag(tag) {
   return tag.trim().replace(/^#/, "").toLowerCase();
 }
@@ -186,6 +188,22 @@ function createMarkdownPreview(markdown, maxCharacters = RICH_MEMORY_PREVIEW_CHA
   return `${preview.trim()}
 
 ...`;
+}
+function getNextMemoryViewRevealCharacters(markdown, currentCharacters, stepCharacters = MEMORY_VIEW_REVEAL_STEP_CHARACTERS) {
+  const current = Math.max(MEMORY_VIEW_PREVIEW_CHARACTERS, currentCharacters);
+  if (markdown.length <= current) {
+    return markdown.length;
+  }
+  const target = Math.min(markdown.length, current + stepCharacters);
+  if (target === markdown.length) {
+    return markdown.length;
+  }
+  const paragraphBreak = markdown.indexOf("\n\n", target);
+  const maximumParagraphOvershoot = Math.floor(stepCharacters / 2);
+  if (paragraphBreak > target && paragraphBreak - target <= maximumParagraphOvershoot) {
+    return paragraphBreak;
+  }
+  return target;
 }
 function selectMemoryPathByHistory(paths, shown, excludedPath) {
   const eligiblePaths = excludedPath && paths.some((path) => path !== excludedPath) ? paths.filter((path) => path !== excludedPath) : paths;
@@ -619,7 +637,7 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
     super(leaf);
     this.plugin = plugin;
     this.reflectionLoading = false;
-    this.expanded = false;
+    this.revealedCharacters = MEMORY_VIEW_PREVIEW_CHARACTERS;
     this.noteRenderGeneration = 0;
   }
   getViewType() {
@@ -656,7 +674,7 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
     this.reflectionText = void 0;
     this.reflectionLoading = false;
     this.automaticReflectionPath = void 0;
-    this.expanded = false;
+    this.revealedCharacters = MEMORY_VIEW_PREVIEW_CHARACTERS;
     this.render({ scrollTarget: "top" });
     await this.plugin.recordMemoryShownFromView(memory);
     return true;
@@ -666,7 +684,7 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
     this.reflectionText = void 0;
     this.reflectionLoading = false;
     this.automaticReflectionPath = void 0;
-    this.expanded = false;
+    this.revealedCharacters = MEMORY_VIEW_PREVIEW_CHARACTERS;
     this.render({ scrollTarget: "top" });
     await this.plugin.recordMemoryShownFromView(memory);
     return true;
@@ -676,8 +694,9 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass("gentle-memories-sidebar-view");
+    const revealStarted = this.hasRevealStarted();
     const scrollContainerEl = containerEl.createDiv({
-      cls: `gentle-memories-view-scroll ${this.expanded ? "gentle-memories-view-scroll-expanded" : "gentle-memories-view-scroll-collapsed"}`
+      cls: `gentle-memories-view-scroll ${revealStarted ? "gentle-memories-view-scroll-expanded" : "gentle-memories-view-scroll-collapsed"}`
     });
     this.scrollContainerEl = scrollContainerEl;
     if (!this.memory) {
@@ -697,22 +716,21 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
         text: this.reflectionLoading ? "Loading memory lead-in..." : this.reflectionText
       });
     }
-    const originalNoteHeadingEl = scrollContainerEl.createEl("h3", {
-      cls: "gentle-memories-original-note-heading",
-      text: "Original note"
-    });
-    const isCollapsedLongNote = !this.expanded && this.memory.markdownBody.length > MEMORY_VIEW_PREVIEW_CHARACTERS;
-    const noteContentEl = scrollContainerEl.createDiv({
-      cls: isCollapsedLongNote ? "gentle-memories-note-content gentle-memories-note-preview gentle-memories-view-note-preview" : "gentle-memories-note-content"
-    });
-    const renderedMarkdown = this.expanded ? this.memory.markdownBody : createMarkdownPreview(this.memory.markdownBody, MEMORY_VIEW_PREVIEW_CHARACTERS);
-    this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
-    const buttonContainer = scrollContainerEl.createDiv({ cls: "gentle-memories-buttons" });
+    const buttonContainer = scrollContainerEl.createDiv({ cls: "gentle-memories-buttons gentle-memories-view-actions" });
     const buttons = new import_obsidian.Setting(buttonContainer);
-    if (this.memory.markdownBody.length > MEMORY_VIEW_PREVIEW_CHARACTERS) {
-      buttons.addButton((button) => button.setButtonText(this.expanded ? "Show less" : "Show more").onClick(() => {
-        this.expanded = !this.expanded;
-        this.render({ scrollTarget: this.expanded ? "note" : "top" });
+    const hasLongNote = this.memory.markdownBody.length > MEMORY_VIEW_PREVIEW_CHARACTERS;
+    const hasMoreHiddenContent = this.revealedCharacters < this.memory.markdownBody.length;
+    if (hasLongNote && hasMoreHiddenContent) {
+      buttons.addButton((button) => button.setButtonText("Show more").onClick(() => {
+        var _a2, _b;
+        this.revealedCharacters = getNextMemoryViewRevealCharacters((_b = (_a2 = this.memory) == null ? void 0 : _a2.markdownBody) != null ? _b : "", this.revealedCharacters);
+        this.render({ scrollTarget: "note" });
+      }));
+    }
+    if (hasLongNote && revealStarted) {
+      buttons.addButton((button) => button.setButtonText("Show less").onClick(() => {
+        this.revealedCharacters = MEMORY_VIEW_PREVIEW_CHARACTERS;
+        this.render({ scrollTarget: "top" });
       }));
     }
     buttons.addButton((button) => button.setButtonText("Open note").onClick(() => {
@@ -725,8 +743,21 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
         void this.showReflection();
       }));
     }
+    const originalNoteHeadingEl = scrollContainerEl.createEl("h3", {
+      cls: "gentle-memories-original-note-heading",
+      text: "Original note"
+    });
+    const isCollapsedLongNote = !revealStarted && hasLongNote;
+    const noteContentEl = scrollContainerEl.createDiv({
+      cls: isCollapsedLongNote ? "gentle-memories-note-content gentle-memories-note-preview gentle-memories-view-note-preview" : "gentle-memories-note-content"
+    });
+    const renderedMarkdown = this.revealedCharacters >= this.memory.markdownBody.length ? this.memory.markdownBody : createMarkdownPreview(this.memory.markdownBody, this.revealedCharacters);
+    this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
     this.startAutomaticReflectionLoad();
     this.restoreScrollPosition(options.scrollTarget, originalNoteHeadingEl);
+  }
+  hasRevealStarted() {
+    return !!this.memory && this.revealedCharacters > MEMORY_VIEW_PREVIEW_CHARACTERS;
   }
   renderNoteMarkdown(noteContentEl, renderedMarkdown, memory) {
     const generation = this.noteRenderGeneration + 1;
@@ -797,7 +828,7 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
       this.reflectionText = void 0;
       this.reflectionLoading = false;
       this.automaticReflectionPath = void 0;
-      this.expanded = false;
+      this.revealedCharacters = MEMORY_VIEW_PREVIEW_CHARACTERS;
       this.render();
       await this.plugin.recordMemoryShownFromView(nextMemory);
     }

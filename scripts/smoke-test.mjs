@@ -44,6 +44,8 @@ for (const styleSnippet of [
   "max-height: min(45vh, 32rem)",
   ".gentle-memories-view-note-preview",
   "max-height: max(22rem, calc(100vh - 14rem))",
+  ".gentle-memories-view-actions",
+  "position: sticky",
   ".gentle-memories-ai-loading"
 ]) {
   if (!stylesSource.includes(styleSnippet)) {
@@ -1530,39 +1532,89 @@ if (!longNoteView.classes.some((className) => className.includes("gentle-memorie
 await clickViewButton("Show more");
 
 if (pendingMarkdownRenders.length !== 2) {
-  throw new Error("Long memory view Show more must start a full Markdown render");
+  throw new Error("Long memory view Show more must start a progressive Markdown render");
 }
 
 if (!scrollIntoViewCalls.some((options) => options?.block === "start")) {
   throw new Error("Long memory view Show more must move the reader near the original note heading");
 }
 
-const expandedViewRender = pendingMarkdownRenders[1];
-expandedViewRender.complete();
+const firstRevealViewRender = pendingMarkdownRenders[1];
+
+if (firstRevealViewRender.markdown.length <= staleCollapsedViewRender.markdown.length) {
+  throw new Error("Memory view Show more must reveal an additional reading segment beyond the compact preview");
+}
+
+if (firstRevealViewRender.markdown.includes(longNoteEnd)) {
+  throw new Error("Memory view Show more must not reveal the entire long note on the first click");
+}
+
+firstRevealViewRender.complete();
 await flushPromises();
 staleCollapsedViewRender.complete();
 await flushPromises();
 longNoteView = renderedViews.at(-1);
 let longNoteViewText = longNoteView.texts.join("\n");
 
-if (!longNoteViewText.includes(longNoteEnd)) {
-  throw new Error("Memory view Show more must render the full note body");
+if (longNoteViewText.includes(longNoteEnd)) {
+  throw new Error("Memory view first progressive reveal must keep the final long-note detail hidden");
 }
 
-if (!longNoteViewText.includes(longNotePreviewBoundary)) {
-  throw new Error("Memory view Show more must reveal content beyond the compact preview");
+if (longNoteViewText.length <= staleCollapsedViewRender.markdown.length) {
+  throw new Error("Memory view first progressive reveal must render more content than the compact preview");
 }
 
 if (longNoteView.classes.some((className) => className.includes("gentle-memories-note-preview"))) {
-  throw new Error("Expanded memory view must remove the constrained preview class");
+  throw new Error("Progressively revealed memory view must remove the constrained preview class");
 }
 
 if (!longNoteView.classes.some((className) => className.includes("gentle-memories-view-scroll-expanded"))) {
-  throw new Error("Expanded memory view must use the expanded scroll state class");
+  throw new Error("Progressively revealed memory view must use the expanded scroll state class");
+}
+
+if (!longNoteView.classes.some((className) => className.includes("gentle-memories-view-actions"))) {
+  throw new Error("Memory view actions must use the sticky action area class");
+}
+
+if (!longNoteView.buttons.includes("Show more")) {
+  throw new Error("Partially revealed memory view must keep Show more available while more content is hidden");
 }
 
 if (!longNoteView.buttons.includes("Show less")) {
-  throw new Error("Expanded memory view must include Show less");
+  throw new Error("Partially revealed memory view must include Show less");
+}
+
+let revealAttempts = 0;
+
+while (longNoteView.buttons.includes("Show more") && revealAttempts < 10) {
+  pendingMarkdownRenders.length = 0;
+  await clickViewButton("Show more");
+
+  if (pendingMarkdownRenders.length !== 1) {
+    throw new Error("Each memory view Show more click must render exactly one additional reveal step");
+  }
+
+  pendingMarkdownRenders[0].complete();
+  await flushPromises();
+  longNoteView = renderedViews.at(-1);
+  longNoteViewText = longNoteView.texts.join("\n");
+  revealAttempts += 1;
+}
+
+if (!longNoteViewText.includes(longNoteEnd)) {
+  throw new Error("Memory view repeated Show more clicks must eventually reveal the full note body");
+}
+
+if (!longNoteViewText.includes(longNotePreviewBoundary)) {
+  throw new Error("Memory view repeated Show more clicks must reveal details beyond the compact preview");
+}
+
+if (longNoteView.buttons.includes("Show more")) {
+  throw new Error("Fully revealed memory view must remove Show more when no hidden content remains");
+}
+
+if (!longNoteView.buttons.includes("Show less")) {
+  throw new Error("Fully revealed memory view must keep Show less available");
 }
 
 pendingMarkdownRenders.length = 0;

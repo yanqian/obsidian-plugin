@@ -90,6 +90,7 @@ const CLAUDE_REFLECTION_MODEL = "claude-3-5-haiku-latest";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const RICH_MEMORY_PREVIEW_CHARACTERS = 240;
 const MEMORY_VIEW_PREVIEW_CHARACTERS = 1800;
+const MEMORY_VIEW_REVEAL_STEP_CHARACTERS = 1800;
 
 export function toComparableTag(tag: string): string {
   return tag.trim().replace(/^#/, "").toLowerCase();
@@ -262,6 +263,33 @@ export function createMarkdownPreview(markdown: string, maxCharacters = RICH_MEM
     : clipped;
 
   return `${preview.trim()}\n\n...`;
+}
+
+export function getNextMemoryViewRevealCharacters(
+  markdown: string,
+  currentCharacters: number,
+  stepCharacters = MEMORY_VIEW_REVEAL_STEP_CHARACTERS
+): number {
+  const current = Math.max(MEMORY_VIEW_PREVIEW_CHARACTERS, currentCharacters);
+
+  if (markdown.length <= current) {
+    return markdown.length;
+  }
+
+  const target = Math.min(markdown.length, current + stepCharacters);
+
+  if (target === markdown.length) {
+    return markdown.length;
+  }
+
+  const paragraphBreak = markdown.indexOf("\n\n", target);
+  const maximumParagraphOvershoot = Math.floor(stepCharacters / 2);
+
+  if (paragraphBreak > target && paragraphBreak - target <= maximumParagraphOvershoot) {
+    return paragraphBreak;
+  }
+
+  return target;
 }
 
 export function selectMemoryPathByHistory(
@@ -804,7 +832,7 @@ class TodayMemoryView extends ItemView {
   private reflectionText: string | undefined;
   private reflectionLoading = false;
   private automaticReflectionPath: string | undefined;
-  private expanded = false;
+  private revealedCharacters = MEMORY_VIEW_PREVIEW_CHARACTERS;
   private noteRenderGeneration = 0;
   private scrollContainerEl: HTMLElement | undefined;
 
@@ -857,7 +885,7 @@ class TodayMemoryView extends ItemView {
     this.reflectionText = undefined;
     this.reflectionLoading = false;
     this.automaticReflectionPath = undefined;
-    this.expanded = false;
+    this.revealedCharacters = MEMORY_VIEW_PREVIEW_CHARACTERS;
     this.render({ scrollTarget: "top" });
     await this.plugin.recordMemoryShownFromView(memory);
     return true;
@@ -868,7 +896,7 @@ class TodayMemoryView extends ItemView {
     this.reflectionText = undefined;
     this.reflectionLoading = false;
     this.automaticReflectionPath = undefined;
-    this.expanded = false;
+    this.revealedCharacters = MEMORY_VIEW_PREVIEW_CHARACTERS;
     this.render({ scrollTarget: "top" });
     await this.plugin.recordMemoryShownFromView(memory);
     return true;
@@ -878,8 +906,9 @@ class TodayMemoryView extends ItemView {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass("gentle-memories-sidebar-view");
+    const revealStarted = this.hasRevealStarted();
     const scrollContainerEl = containerEl.createDiv({
-      cls: `gentle-memories-view-scroll ${this.expanded ? "gentle-memories-view-scroll-expanded" : "gentle-memories-view-scroll-collapsed"}`
+      cls: `gentle-memories-view-scroll ${revealStarted ? "gentle-memories-view-scroll-expanded" : "gentle-memories-view-scroll-collapsed"}`
     });
     this.scrollContainerEl = scrollContainerEl;
 
@@ -903,31 +932,26 @@ class TodayMemoryView extends ItemView {
       });
     }
 
-    const originalNoteHeadingEl = scrollContainerEl.createEl("h3", {
-      cls: "gentle-memories-original-note-heading",
-      text: "Original note"
-    });
-    const isCollapsedLongNote = !this.expanded && this.memory.markdownBody.length > MEMORY_VIEW_PREVIEW_CHARACTERS;
-    const noteContentEl = scrollContainerEl.createDiv({
-      cls: isCollapsedLongNote
-        ? "gentle-memories-note-content gentle-memories-note-preview gentle-memories-view-note-preview"
-        : "gentle-memories-note-content"
-    });
-    const renderedMarkdown = this.expanded
-      ? this.memory.markdownBody
-      : createMarkdownPreview(this.memory.markdownBody, MEMORY_VIEW_PREVIEW_CHARACTERS);
-
-    this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
-
-    const buttonContainer = scrollContainerEl.createDiv({ cls: "gentle-memories-buttons" });
+    const buttonContainer = scrollContainerEl.createDiv({ cls: "gentle-memories-buttons gentle-memories-view-actions" });
     const buttons = new Setting(buttonContainer);
+    const hasLongNote = this.memory.markdownBody.length > MEMORY_VIEW_PREVIEW_CHARACTERS;
+    const hasMoreHiddenContent = this.revealedCharacters < this.memory.markdownBody.length;
 
-    if (this.memory.markdownBody.length > MEMORY_VIEW_PREVIEW_CHARACTERS) {
+    if (hasLongNote && hasMoreHiddenContent) {
       buttons.addButton((button) => button
-        .setButtonText(this.expanded ? "Show less" : "Show more")
+        .setButtonText("Show more")
         .onClick(() => {
-          this.expanded = !this.expanded;
-          this.render({ scrollTarget: this.expanded ? "note" : "top" });
+          this.revealedCharacters = getNextMemoryViewRevealCharacters(this.memory?.markdownBody ?? "", this.revealedCharacters);
+          this.render({ scrollTarget: "note" });
+        }));
+    }
+
+    if (hasLongNote && revealStarted) {
+      buttons.addButton((button) => button
+        .setButtonText("Show less")
+        .onClick(() => {
+          this.revealedCharacters = MEMORY_VIEW_PREVIEW_CHARACTERS;
+          this.render({ scrollTarget: "top" });
         }));
     }
 
@@ -951,8 +975,28 @@ class TodayMemoryView extends ItemView {
         }));
     }
 
+    const originalNoteHeadingEl = scrollContainerEl.createEl("h3", {
+      cls: "gentle-memories-original-note-heading",
+      text: "Original note"
+    });
+    const isCollapsedLongNote = !revealStarted && hasLongNote;
+    const noteContentEl = scrollContainerEl.createDiv({
+      cls: isCollapsedLongNote
+        ? "gentle-memories-note-content gentle-memories-note-preview gentle-memories-view-note-preview"
+        : "gentle-memories-note-content"
+    });
+    const renderedMarkdown = this.revealedCharacters >= this.memory.markdownBody.length
+      ? this.memory.markdownBody
+      : createMarkdownPreview(this.memory.markdownBody, this.revealedCharacters);
+
+    this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
+
     this.startAutomaticReflectionLoad();
     this.restoreScrollPosition(options.scrollTarget, originalNoteHeadingEl);
+  }
+
+  private hasRevealStarted(): boolean {
+    return !!this.memory && this.revealedCharacters > MEMORY_VIEW_PREVIEW_CHARACTERS;
   }
 
   private renderNoteMarkdown(noteContentEl: HTMLElement, renderedMarkdown: string, memory: MemoryEntry): void {
@@ -1039,7 +1083,7 @@ class TodayMemoryView extends ItemView {
       this.reflectionText = undefined;
       this.reflectionLoading = false;
       this.automaticReflectionPath = undefined;
-      this.expanded = false;
+      this.revealedCharacters = MEMORY_VIEW_PREVIEW_CHARACTERS;
       this.render();
       await this.plugin.recordMemoryShownFromView(nextMemory);
     }
