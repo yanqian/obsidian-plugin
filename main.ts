@@ -722,6 +722,7 @@ class TodayMemoryView extends ItemView {
   private automaticReflectionPath: string | undefined;
   private expanded = false;
   private noteRenderGeneration = 0;
+  private scrollContainerEl: HTMLElement | undefined;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -766,29 +767,33 @@ class TodayMemoryView extends ItemView {
     this.reflectionLoading = false;
     this.automaticReflectionPath = undefined;
     this.expanded = false;
-    this.render();
+    this.render({ scrollTarget: "top" });
     await this.plugin.recordMemoryShownFromView(memory);
     return true;
   }
 
-  private render(): void {
+  private render(options: { scrollTarget?: "top" | "note" } = {}): void {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass("gentle-memories-sidebar-view");
+    const scrollContainerEl = containerEl.createDiv({
+      cls: `gentle-memories-view-scroll ${this.expanded ? "gentle-memories-view-scroll-expanded" : "gentle-memories-view-scroll-collapsed"}`
+    });
+    this.scrollContainerEl = scrollContainerEl;
 
     if (!this.memory) {
       this.renderEmpty();
       return;
     }
 
-    containerEl.createEl("h2", { text: this.memory.title });
-    containerEl.createEl("p", {
+    scrollContainerEl.createEl("h2", { text: this.memory.title });
+    scrollContainerEl.createEl("p", {
       cls: "gentle-memories-date",
       text: this.memory.date ?? this.memory.path
     });
 
     if (this.reflectionText || this.reflectionLoading) {
-      const reflectionEl = containerEl.createDiv({ cls: "gentle-memories-ai-lead-in" });
+      const reflectionEl = scrollContainerEl.createDiv({ cls: "gentle-memories-ai-lead-in" });
       reflectionEl.createEl("h3", { text: "Memory lead-in" });
       reflectionEl.createEl("p", {
         cls: this.reflectionLoading ? "gentle-memories-ai-loading" : undefined,
@@ -796,12 +801,12 @@ class TodayMemoryView extends ItemView {
       });
     }
 
-    containerEl.createEl("h3", {
+    const originalNoteHeadingEl = scrollContainerEl.createEl("h3", {
       cls: "gentle-memories-original-note-heading",
       text: "Original note"
     });
     const isCollapsedLongNote = !this.expanded && this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS;
-    const noteContentEl = containerEl.createDiv({
+    const noteContentEl = scrollContainerEl.createDiv({
       cls: isCollapsedLongNote
         ? "gentle-memories-note-content gentle-memories-note-preview"
         : "gentle-memories-note-content"
@@ -812,7 +817,7 @@ class TodayMemoryView extends ItemView {
 
     this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
 
-    const buttonContainer = containerEl.createDiv({ cls: "gentle-memories-buttons" });
+    const buttonContainer = scrollContainerEl.createDiv({ cls: "gentle-memories-buttons" });
     const buttons = new Setting(buttonContainer);
 
     if (this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS) {
@@ -820,7 +825,7 @@ class TodayMemoryView extends ItemView {
         .setButtonText(this.expanded ? "Show less" : "Show more")
         .onClick(() => {
           this.expanded = !this.expanded;
-          this.render();
+          this.render({ scrollTarget: this.expanded ? "note" : "top" });
         }));
     }
 
@@ -845,6 +850,7 @@ class TodayMemoryView extends ItemView {
     }
 
     this.startAutomaticReflectionLoad();
+    this.restoreScrollPosition(options.scrollTarget, originalNoteHeadingEl);
   }
 
   private renderNoteMarkdown(noteContentEl: HTMLElement, renderedMarkdown: string, memory: MemoryEntry): void {
@@ -877,11 +883,28 @@ class TodayMemoryView extends ItemView {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass("gentle-memories-sidebar-view");
-    containerEl.createEl("h2", { text: TODAY_MEMORY_VIEW_TITLE });
-    containerEl.createEl("p", {
+    const scrollContainerEl = containerEl.createDiv({
+      cls: "gentle-memories-view-scroll gentle-memories-view-scroll-collapsed"
+    });
+    this.scrollContainerEl = scrollContainerEl;
+    scrollContainerEl.createEl("h2", { text: TODAY_MEMORY_VIEW_TITLE });
+    scrollContainerEl.createEl("p", {
       cls: "gentle-memories-empty-state",
       text: "No journal notes found for the configured tags."
     });
+  }
+
+  private restoreScrollPosition(scrollTarget: "top" | "note" | undefined, originalNoteHeadingEl: HTMLElement): void {
+    if (!scrollTarget || !this.scrollContainerEl) {
+      return;
+    }
+
+    if (scrollTarget === "top") {
+      this.scrollContainerEl.scrollTop = 0;
+      return;
+    }
+
+    originalNoteHeadingEl.scrollIntoView({ block: "start" });
   }
 
   private async openSourceNote(): Promise<void> {

@@ -35,7 +35,13 @@ for (const styleSnippet of [
   "var(--interactive-accent)",
   ".gentle-memories-original-note-heading",
   ".gentle-memories-note-preview",
-  "max-height: 45vh",
+  ".gentle-memories-view-scroll",
+  ".gentle-memories-view-scroll-expanded",
+  ".gentle-memories-view-scroll-collapsed",
+  "overflow-y: auto",
+  "-webkit-overflow-scrolling: touch",
+  "overscroll-behavior: contain",
+  "max-height: min(45vh, 32rem)",
   ".gentle-memories-ai-loading"
 ]) {
   if (!stylesSource.includes(styleSnippet)) {
@@ -168,6 +174,7 @@ const renderedViews = [];
 const openedFiles = [];
 const createdWorkspaceTabs = [];
 const createdRightLeaves = [];
+const scrollIntoViewCalls = [];
 let layoutCallbacks = [];
 let delayMarkdownRendering = false;
 const pendingMarkdownRenders = [];
@@ -185,6 +192,8 @@ class MockElement {
     this.buttonHandlers = new Map();
     this.settings = [];
     this.classes = [];
+    this.scrollTop = 0;
+    this.scrollIntoViewCalls = [];
   }
 
   empty() {
@@ -193,6 +202,7 @@ class MockElement {
     this.buttonHandlers.clear();
     this.settings.length = 0;
     this.classes.length = 0;
+    this.scrollIntoViewCalls.length = 0;
   }
 
   createEl(_tagName, options = {}) {
@@ -239,6 +249,11 @@ class MockElement {
     }
 
     return child;
+  }
+
+  scrollIntoView(options) {
+    this.scrollIntoViewCalls.push(options);
+    scrollIntoViewCalls.push(options);
   }
 }
 
@@ -1360,6 +1375,7 @@ openedFiles.length = 0;
 createdWorkspaceTabs.length = 0;
 createdRightLeaves.length = 0;
 pendingMarkdownRenders.length = 0;
+scrollIntoViewCalls.length = 0;
 delayMarkdownRendering = true;
 const longNoteViewPlugin = new GentleMemoriesPlugin(createMockApp([{
   path: "Memories/2024-04-01 Journal.md",
@@ -1387,10 +1403,19 @@ if (!longNoteView?.buttons.includes("Show more")) {
   throw new Error("Long memory view must include Show more before expansion");
 }
 
+if (!longNoteView.classes.some((className) => className.includes("gentle-memories-view-scroll")) ||
+  !longNoteView.classes.some((className) => className.includes("gentle-memories-view-scroll-collapsed"))) {
+  throw new Error(`Collapsed long memory view must render inside the scroll container with the collapsed state class: ${JSON.stringify(longNoteView.classes)}`);
+}
+
 await clickViewButton("Show more");
 
 if (pendingMarkdownRenders.length !== 2) {
   throw new Error("Long memory view Show more must start a full Markdown render");
+}
+
+if (!scrollIntoViewCalls.some((options) => options?.block === "start")) {
+  throw new Error("Long memory view Show more must move the reader near the original note heading");
 }
 
 const expandedViewRender = pendingMarkdownRenders[1];
@@ -1413,15 +1438,24 @@ if (longNoteView.classes.some((className) => className.includes("gentle-memories
   throw new Error("Expanded memory view must remove the constrained preview class");
 }
 
+if (!longNoteView.classes.some((className) => className.includes("gentle-memories-view-scroll-expanded"))) {
+  throw new Error("Expanded memory view must use the expanded scroll state class");
+}
+
 if (!longNoteView.buttons.includes("Show less")) {
   throw new Error("Expanded memory view must include Show less");
 }
 
 pendingMarkdownRenders.length = 0;
+longNoteView.scrollTop = 1200;
 await clickViewButton("Show less");
 
 if (pendingMarkdownRenders.length !== 1) {
   throw new Error("Long memory view Show less must start a compact Markdown render");
+}
+
+if (longNoteView.scrollTop !== 0) {
+  throw new Error("Long memory view Show less must return the scroll container to the top");
 }
 
 pendingMarkdownRenders[0].complete();
@@ -1439,6 +1473,10 @@ if (longNoteViewText.includes(longNotePreviewBoundary)) {
 
 if (!longNoteView.classes.some((className) => className.includes("gentle-memories-note-preview"))) {
   throw new Error("Collapsed memory view must restore the constrained preview class");
+}
+
+if (!longNoteView.classes.some((className) => className.includes("gentle-memories-view-scroll-collapsed"))) {
+  throw new Error("Collapsed memory view must use the collapsed scroll state class");
 }
 
 if (!longNoteView.buttons.includes("Show more")) {

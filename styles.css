@@ -1,5 +1,28 @@
 .gentle-memories-sidebar-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.gentle-memories-view-scroll {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 0.75rem;
+}
+
+.gentle-memories-view-scroll-expanded {
+  scroll-padding-top: 0.75rem;
+}
+
+.gentle-memories-view-scroll-collapsed {
+  scroll-padding-bottom: 0.75rem;
 }
 
 .gentle-memories-sidebar-view h2 {
@@ -50,7 +73,7 @@
 }
 
 .gentle-memories-note-preview {
-  max-height: 45vh;
+  max-height: min(45vh, 32rem);
   overflow: hidden;
 }
 
