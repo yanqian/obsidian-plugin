@@ -89,6 +89,7 @@ const CLAUDE_REFLECTION_ENDPOINT = "https://api.anthropic.com/v1/messages";
 const CLAUDE_REFLECTION_MODEL = "claude-3-5-haiku-latest";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const RICH_MEMORY_PREVIEW_CHARACTERS = 240;
+const MEMORY_VIEW_PREVIEW_CHARACTERS = 1800;
 
 export function toComparableTag(tag: string): string {
   return tag.trim().replace(/^#/, "").toLowerCase();
@@ -248,18 +249,73 @@ export function createMarkdownBody(markdown: string): string {
   return stripFrontmatter(markdown).trim();
 }
 
-export function createMarkdownPreview(markdown: string): string {
-  if (markdown.length <= RICH_MEMORY_PREVIEW_CHARACTERS) {
+export function createMarkdownPreview(markdown: string, maxCharacters = RICH_MEMORY_PREVIEW_CHARACTERS): string {
+  if (markdown.length <= maxCharacters) {
     return markdown;
   }
 
-  const clipped = markdown.slice(0, RICH_MEMORY_PREVIEW_CHARACTERS);
+  const clipped = markdown.slice(0, maxCharacters);
   const paragraphBreak = clipped.lastIndexOf("\n\n");
-  const preview = paragraphBreak >= 80
+  const minimumParagraphPreview = Math.min(80, Math.floor(maxCharacters / 3));
+  const preview = paragraphBreak >= minimumParagraphPreview
     ? clipped.slice(0, paragraphBreak)
     : clipped;
 
   return `${preview.trim()}\n\n...`;
+}
+
+export function selectMemoryPathByHistory(
+  paths: string[],
+  shown: DisplayHistory["shown"],
+  excludedPath?: string
+): string | null {
+  const eligiblePaths = excludedPath && paths.some((path) => path !== excludedPath)
+    ? paths.filter((path) => path !== excludedPath)
+    : paths;
+
+  if (eligiblePaths.length === 0) {
+    return null;
+  }
+
+  const excludedIndex = excludedPath ? paths.indexOf(excludedPath) : -1;
+  const pathIndex = new Map(paths.map((path, index) => [path, index]));
+  const cyclicDistanceFromExcluded = (path: string): number => {
+    const index = pathIndex.get(path) ?? 0;
+
+    if (excludedIndex < 0) {
+      return index;
+    }
+
+    return (index - excludedIndex + paths.length) % paths.length || paths.length;
+  };
+  const shownAtTime = (path: string): number => {
+    const shownAt = shown[path]?.shownAt;
+
+    if (!shownAt) {
+      return Number.NEGATIVE_INFINITY;
+    }
+
+    const time = Date.parse(shownAt);
+    return Number.isFinite(time) ? time : 0;
+  };
+  const [selectedPath] = [...eligiblePaths].sort((left, right) => {
+    const leftShown = Boolean(shown[left]);
+    const rightShown = Boolean(shown[right]);
+
+    if (leftShown !== rightShown) {
+      return leftShown ? 1 : -1;
+    }
+
+    const timeDifference = shownAtTime(left) - shownAtTime(right);
+
+    if (timeDifference !== 0) {
+      return timeDifference;
+    }
+
+    return cyclicDistanceFromExcluded(left) - cyclicDistanceFromExcluded(right);
+  });
+
+  return selectedPath ?? null;
 }
 
 export function createContentHash(value: string): string {
@@ -289,6 +345,7 @@ export default class GentleMemoriesPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
   private displayHistory: DisplayHistory = DEFAULT_DISPLAY_HISTORY;
   private lastStartupMemoryShownAt: number | undefined;
+  private openingTodayMemoryView = false;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -356,11 +413,22 @@ export default class GentleMemoriesPlugin extends Plugin {
   }
 
   async openTodayMemoryView(options: { showNotice?: boolean } = {}): Promise<boolean> {
+    const showNotice = options.showNotice ?? true;
+    const memory = await this.selectMemoryForView();
+
+    if (!memory) {
+      if (showNotice) {
+        new Notice("No journal notes found for the configured tags.");
+      }
+
+      return false;
+    }
+
     const leaf = await this.getTodayMemoryLeaf();
     const view = leaf.view;
 
     if (view instanceof TodayMemoryView) {
-      return view.loadMemory(options);
+      return view.showMemory(memory);
     }
 
     return false;
@@ -382,6 +450,10 @@ export default class GentleMemoriesPlugin extends Plugin {
     return this.settings.aiEnabled && Boolean(this.getSelectedApiKey());
   }
 
+  isOpeningTodayMemoryView(): boolean {
+    return this.openingTodayMemoryView;
+  }
+
   private async getTodayMemoryLeaf(): Promise<WorkspaceLeaf> {
     const existingLeaves = this.app.workspace.getLeavesOfType(TODAY_MEMORY_VIEW_TYPE);
     const existingLeaf = existingLeaves.find((leaf) => this.isMainWorkspaceLeaf(leaf));
@@ -397,10 +469,17 @@ export default class GentleMemoriesPlugin extends Plugin {
 
     const leaf = this.app.workspace.getLeaf("tab");
 
-    await leaf.setViewState({
-      type: TODAY_MEMORY_VIEW_TYPE,
-      active: true
-    });
+    this.openingTodayMemoryView = true;
+
+    try {
+      await leaf.setViewState({
+        type: TODAY_MEMORY_VIEW_TYPE,
+        active: true
+      });
+    } finally {
+      this.openingTodayMemoryView = false;
+    }
+
     await this.app.workspace.revealLeaf(leaf);
 
     return leaf;
@@ -437,18 +516,23 @@ export default class GentleMemoriesPlugin extends Plugin {
       return null;
     }
 
-    const eligibleMemories = excludedPath && memories.some((memory) => memory.path !== excludedPath)
-      ? memories.filter((memory) => memory.path !== excludedPath)
-      : memories;
-    const neverShownMemories = eligibleMemories.filter((memory) => !this.displayHistory.shown[memory.path]);
-    const selectableMemories = neverShownMemories.length > 0 ? neverShownMemories : eligibleMemories;
-
-    const selectedMemory = selectableMemories[0] ?? null;
+    const selectedPath = selectMemoryPathByHistory(
+      memories.map((memory) => memory.path),
+      this.displayHistory.shown,
+      excludedPath
+    );
+    const eligibleMemoryCount = excludedPath && memories.some((memory) => memory.path !== excludedPath)
+      ? memories.length - 1
+      : memories.length;
+    const neverShownMemoryCount = memories.filter((memory) => !this.displayHistory.shown[memory.path]).length;
+    const selectedMemory = selectedPath
+      ? memories.find((memory) => memory.path === selectedPath) ?? null
+      : null;
     this.debugLog("memory-selection", {
       selected: Boolean(selectedMemory),
       selectedPath: selectedMemory?.path,
-      eligibleMemoryCount: eligibleMemories.length,
-      neverShownMemoryCount: neverShownMemories.length
+      eligibleMemoryCount,
+      neverShownMemoryCount
     });
 
     return selectedMemory;
@@ -744,7 +828,14 @@ class TodayMemoryView extends ItemView {
   }
 
   async onOpen(): Promise<void> {
-    this.render();
+    if (!this.memory && !this.plugin.isOpeningTodayMemoryView()) {
+      await this.closeRestoredEmptyView();
+      return;
+    }
+
+    if (this.memory) {
+      this.render();
+    }
   }
 
   async loadMemory(options: { showNotice?: boolean } = {}): Promise<boolean> {
@@ -762,6 +853,17 @@ class TodayMemoryView extends ItemView {
       return false;
     }
 
+    this.memory = memory;
+    this.reflectionText = undefined;
+    this.reflectionLoading = false;
+    this.automaticReflectionPath = undefined;
+    this.expanded = false;
+    this.render({ scrollTarget: "top" });
+    await this.plugin.recordMemoryShownFromView(memory);
+    return true;
+  }
+
+  async showMemory(memory: MemoryEntry): Promise<boolean> {
     this.memory = memory;
     this.reflectionText = undefined;
     this.reflectionLoading = false;
@@ -805,22 +907,22 @@ class TodayMemoryView extends ItemView {
       cls: "gentle-memories-original-note-heading",
       text: "Original note"
     });
-    const isCollapsedLongNote = !this.expanded && this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS;
+    const isCollapsedLongNote = !this.expanded && this.memory.markdownBody.length > MEMORY_VIEW_PREVIEW_CHARACTERS;
     const noteContentEl = scrollContainerEl.createDiv({
       cls: isCollapsedLongNote
-        ? "gentle-memories-note-content gentle-memories-note-preview"
+        ? "gentle-memories-note-content gentle-memories-note-preview gentle-memories-view-note-preview"
         : "gentle-memories-note-content"
     });
     const renderedMarkdown = this.expanded
       ? this.memory.markdownBody
-      : createMarkdownPreview(this.memory.markdownBody);
+      : createMarkdownPreview(this.memory.markdownBody, MEMORY_VIEW_PREVIEW_CHARACTERS);
 
     this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
 
     const buttonContainer = scrollContainerEl.createDiv({ cls: "gentle-memories-buttons" });
     const buttons = new Setting(buttonContainer);
 
-    if (this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS) {
+    if (this.memory.markdownBody.length > MEMORY_VIEW_PREVIEW_CHARACTERS) {
       buttons.addButton((button) => button
         .setButtonText(this.expanded ? "Show less" : "Show more")
         .onClick(() => {
@@ -892,6 +994,15 @@ class TodayMemoryView extends ItemView {
       cls: "gentle-memories-empty-state",
       text: "No journal notes found for the configured tags."
     });
+  }
+
+  private async closeRestoredEmptyView(): Promise<void> {
+    this.containerEl.empty();
+    const leafWithDetach = this.leaf as WorkspaceLeaf & { detach?: () => Promise<void> };
+
+    if (typeof leafWithDetach.detach === "function") {
+      await leafWithDetach.detach();
+    }
   }
 
   private restoreScrollPosition(scrollTarget: "top" | "note" | undefined, originalNoteHeadingEl: HTMLElement): void {

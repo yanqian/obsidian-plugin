@@ -34,6 +34,7 @@ __export(main_exports, {
   normalizeJournalTags: () => normalizeJournalTags,
   normalizeSettings: () => normalizeSettings,
   noteHasConfiguredJournalTag: () => noteHasConfiguredJournalTag,
+  selectMemoryPathByHistory: () => selectMemoryPathByHistory,
   stripFrontmatter: () => stripFrontmatter,
   toComparableTag: () => toComparableTag
 });
@@ -66,6 +67,7 @@ var CLAUDE_REFLECTION_ENDPOINT = "https://api.anthropic.com/v1/messages";
 var CLAUDE_REFLECTION_MODEL = "claude-3-5-haiku-latest";
 var MS_PER_DAY = 24 * 60 * 60 * 1e3;
 var RICH_MEMORY_PREVIEW_CHARACTERS = 240;
+var MEMORY_VIEW_PREVIEW_CHARACTERS = 1800;
 function toComparableTag(tag) {
   return tag.trim().replace(/^#/, "").toLowerCase();
 }
@@ -173,16 +175,55 @@ function stripFrontmatter(markdown) {
 function createMarkdownBody(markdown) {
   return stripFrontmatter(markdown).trim();
 }
-function createMarkdownPreview(markdown) {
-  if (markdown.length <= RICH_MEMORY_PREVIEW_CHARACTERS) {
+function createMarkdownPreview(markdown, maxCharacters = RICH_MEMORY_PREVIEW_CHARACTERS) {
+  if (markdown.length <= maxCharacters) {
     return markdown;
   }
-  const clipped = markdown.slice(0, RICH_MEMORY_PREVIEW_CHARACTERS);
+  const clipped = markdown.slice(0, maxCharacters);
   const paragraphBreak = clipped.lastIndexOf("\n\n");
-  const preview = paragraphBreak >= 80 ? clipped.slice(0, paragraphBreak) : clipped;
+  const minimumParagraphPreview = Math.min(80, Math.floor(maxCharacters / 3));
+  const preview = paragraphBreak >= minimumParagraphPreview ? clipped.slice(0, paragraphBreak) : clipped;
   return `${preview.trim()}
 
 ...`;
+}
+function selectMemoryPathByHistory(paths, shown, excludedPath) {
+  const eligiblePaths = excludedPath && paths.some((path) => path !== excludedPath) ? paths.filter((path) => path !== excludedPath) : paths;
+  if (eligiblePaths.length === 0) {
+    return null;
+  }
+  const excludedIndex = excludedPath ? paths.indexOf(excludedPath) : -1;
+  const pathIndex = new Map(paths.map((path, index) => [path, index]));
+  const cyclicDistanceFromExcluded = (path) => {
+    var _a;
+    const index = (_a = pathIndex.get(path)) != null ? _a : 0;
+    if (excludedIndex < 0) {
+      return index;
+    }
+    return (index - excludedIndex + paths.length) % paths.length || paths.length;
+  };
+  const shownAtTime = (path) => {
+    var _a;
+    const shownAt = (_a = shown[path]) == null ? void 0 : _a.shownAt;
+    if (!shownAt) {
+      return Number.NEGATIVE_INFINITY;
+    }
+    const time = Date.parse(shownAt);
+    return Number.isFinite(time) ? time : 0;
+  };
+  const [selectedPath] = [...eligiblePaths].sort((left, right) => {
+    const leftShown = Boolean(shown[left]);
+    const rightShown = Boolean(shown[right]);
+    if (leftShown !== rightShown) {
+      return leftShown ? 1 : -1;
+    }
+    const timeDifference = shownAtTime(left) - shownAtTime(right);
+    if (timeDifference !== 0) {
+      return timeDifference;
+    }
+    return cyclicDistanceFromExcluded(left) - cyclicDistanceFromExcluded(right);
+  });
+  return selectedPath != null ? selectedPath : null;
 }
 function createContentHash(value) {
   let hash = 0;
@@ -203,6 +244,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
     this.displayHistory = DEFAULT_DISPLAY_HISTORY;
+    this.openingTodayMemoryView = false;
   }
   async onload() {
     await this.loadSettings();
@@ -260,10 +302,19 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
     return false;
   }
   async openTodayMemoryView(options = {}) {
+    var _a;
+    const showNotice = (_a = options.showNotice) != null ? _a : true;
+    const memory = await this.selectMemoryForView();
+    if (!memory) {
+      if (showNotice) {
+        new import_obsidian.Notice("No journal notes found for the configured tags.");
+      }
+      return false;
+    }
     const leaf = await this.getTodayMemoryLeaf();
     const view = leaf.view;
     if (view instanceof TodayMemoryView) {
-      return view.loadMemory(options);
+      return view.showMemory(memory);
     }
     return false;
   }
@@ -279,6 +330,9 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   canAutoLoadAiReflection() {
     return this.settings.aiEnabled && Boolean(this.getSelectedApiKey());
   }
+  isOpeningTodayMemoryView() {
+    return this.openingTodayMemoryView;
+  }
   async getTodayMemoryLeaf() {
     const existingLeaves = this.app.workspace.getLeavesOfType(TODAY_MEMORY_VIEW_TYPE);
     const existingLeaf = existingLeaves.find((leaf2) => this.isMainWorkspaceLeaf(leaf2));
@@ -290,10 +344,15 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       this.app.workspace.detachLeavesOfType(TODAY_MEMORY_VIEW_TYPE);
     }
     const leaf = this.app.workspace.getLeaf("tab");
-    await leaf.setViewState({
-      type: TODAY_MEMORY_VIEW_TYPE,
-      active: true
-    });
+    this.openingTodayMemoryView = true;
+    try {
+      await leaf.setViewState({
+        type: TODAY_MEMORY_VIEW_TYPE,
+        active: true
+      });
+    } finally {
+      this.openingTodayMemoryView = false;
+    }
     await this.app.workspace.revealLeaf(leaf);
     return leaf;
   }
@@ -323,15 +382,19 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       this.debugLog("memory-selection", { selected: false });
       return null;
     }
-    const eligibleMemories = excludedPath && memories.some((memory) => memory.path !== excludedPath) ? memories.filter((memory) => memory.path !== excludedPath) : memories;
-    const neverShownMemories = eligibleMemories.filter((memory) => !this.displayHistory.shown[memory.path]);
-    const selectableMemories = neverShownMemories.length > 0 ? neverShownMemories : eligibleMemories;
-    const selectedMemory = (_a = selectableMemories[0]) != null ? _a : null;
+    const selectedPath = selectMemoryPathByHistory(
+      memories.map((memory) => memory.path),
+      this.displayHistory.shown,
+      excludedPath
+    );
+    const eligibleMemoryCount = excludedPath && memories.some((memory) => memory.path !== excludedPath) ? memories.length - 1 : memories.length;
+    const neverShownMemoryCount = memories.filter((memory) => !this.displayHistory.shown[memory.path]).length;
+    const selectedMemory = selectedPath ? (_a = memories.find((memory) => memory.path === selectedPath)) != null ? _a : null : null;
     this.debugLog("memory-selection", {
       selected: Boolean(selectedMemory),
       selectedPath: selectedMemory == null ? void 0 : selectedMemory.path,
-      eligibleMemoryCount: eligibleMemories.length,
-      neverShownMemoryCount: neverShownMemories.length
+      eligibleMemoryCount,
+      neverShownMemoryCount
     });
     return selectedMemory;
   }
@@ -569,7 +632,13 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
     return SHOW_MEMORY_RIBBON_ICON;
   }
   async onOpen() {
-    this.render();
+    if (!this.memory && !this.plugin.isOpeningTodayMemoryView()) {
+      await this.closeRestoredEmptyView();
+      return;
+    }
+    if (this.memory) {
+      this.render();
+    }
   }
   async loadMemory(options = {}) {
     var _a;
@@ -583,6 +652,16 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
       }
       return false;
     }
+    this.memory = memory;
+    this.reflectionText = void 0;
+    this.reflectionLoading = false;
+    this.automaticReflectionPath = void 0;
+    this.expanded = false;
+    this.render({ scrollTarget: "top" });
+    await this.plugin.recordMemoryShownFromView(memory);
+    return true;
+  }
+  async showMemory(memory) {
     this.memory = memory;
     this.reflectionText = void 0;
     this.reflectionLoading = false;
@@ -622,15 +701,15 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
       cls: "gentle-memories-original-note-heading",
       text: "Original note"
     });
-    const isCollapsedLongNote = !this.expanded && this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS;
+    const isCollapsedLongNote = !this.expanded && this.memory.markdownBody.length > MEMORY_VIEW_PREVIEW_CHARACTERS;
     const noteContentEl = scrollContainerEl.createDiv({
-      cls: isCollapsedLongNote ? "gentle-memories-note-content gentle-memories-note-preview" : "gentle-memories-note-content"
+      cls: isCollapsedLongNote ? "gentle-memories-note-content gentle-memories-note-preview gentle-memories-view-note-preview" : "gentle-memories-note-content"
     });
-    const renderedMarkdown = this.expanded ? this.memory.markdownBody : createMarkdownPreview(this.memory.markdownBody);
+    const renderedMarkdown = this.expanded ? this.memory.markdownBody : createMarkdownPreview(this.memory.markdownBody, MEMORY_VIEW_PREVIEW_CHARACTERS);
     this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
     const buttonContainer = scrollContainerEl.createDiv({ cls: "gentle-memories-buttons" });
     const buttons = new import_obsidian.Setting(buttonContainer);
-    if (this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS) {
+    if (this.memory.markdownBody.length > MEMORY_VIEW_PREVIEW_CHARACTERS) {
       buttons.addButton((button) => button.setButtonText(this.expanded ? "Show less" : "Show more").onClick(() => {
         this.expanded = !this.expanded;
         this.render({ scrollTarget: this.expanded ? "note" : "top" });
@@ -683,6 +762,13 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
       cls: "gentle-memories-empty-state",
       text: "No journal notes found for the configured tags."
     });
+  }
+  async closeRestoredEmptyView() {
+    this.containerEl.empty();
+    const leafWithDetach = this.leaf;
+    if (typeof leafWithDetach.detach === "function") {
+      await leafWithDetach.detach();
+    }
   }
   restoreScrollPosition(scrollTarget, originalNoteHeadingEl) {
     if (!scrollTarget || !this.scrollContainerEl) {

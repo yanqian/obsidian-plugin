@@ -41,6 +41,7 @@ const {
   normalizeJournalTags,
   normalizeSettings,
   noteHasConfiguredJournalTag,
+  selectMemoryPathByHistory,
   stripFrontmatter,
   toComparableTag
 } = pluginModule;
@@ -95,6 +96,9 @@ const longMarkdown = `${"Opening sentence. ".repeat(20)}\n\nHidden paragraph.`;
 const preview = createMarkdownPreview(longMarkdown);
 assert.equal(preview.endsWith("\n\n..."), true);
 assert.equal(preview.includes("Hidden paragraph."), false);
+const densePreview = createMarkdownPreview(`${"Opening sentence. ".repeat(80)}\n\nHidden paragraph.`, 1000);
+assert.equal(densePreview.includes("Opening sentence."), true);
+assert.equal(densePreview.length > preview.length, true);
 
 assert.equal(createContentHash("same"), createContentHash("same"));
 assert.notEqual(createContentHash("same"), createContentHash("different"));
@@ -146,5 +150,21 @@ assert.equal(canShowStartupMemoryAt(now, 1, undefined), true);
 assert.equal(canShowStartupMemoryAt(now, 0, now), true);
 assert.equal(canShowStartupMemoryAt(now, 2, now - 3 * 24 * 60 * 60 * 1000), true);
 assert.equal(canShowStartupMemoryAt(now, 2, now - 1 * 24 * 60 * 60 * 1000), false);
+
+const memoryPaths = ["a.md", "b.md", "c.md"];
+assert.equal(selectMemoryPathByHistory(memoryPaths, {}, "a.md"), "b.md");
+assert.equal(selectMemoryPathByHistory(memoryPaths, {
+  "a.md": { shownAt: "2026-01-03T00:00:00.000Z", contentHash: "a" },
+  "b.md": { shownAt: "2026-01-01T00:00:00.000Z", contentHash: "b" },
+  "c.md": { shownAt: "2026-01-02T00:00:00.000Z", contentHash: "c" }
+}, "b.md"), "c.md");
+assert.equal(selectMemoryPathByHistory(memoryPaths, {
+  "a.md": { shownAt: "2026-01-01T00:00:00.000Z", contentHash: "a" },
+  "b.md": { shownAt: "2026-01-01T00:00:00.000Z", contentHash: "b" },
+  "c.md": { shownAt: "2026-01-01T00:00:00.000Z", contentHash: "c" }
+}, "a.md"), "b.md");
+assert.equal(selectMemoryPathByHistory(["only.md"], {
+  "only.md": { shownAt: "2026-01-01T00:00:00.000Z", contentHash: "only" }
+}, "only.md"), "only.md");
 
 console.log("Unit tests passed.");

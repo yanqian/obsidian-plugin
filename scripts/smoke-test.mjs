@@ -42,6 +42,8 @@ for (const styleSnippet of [
   "-webkit-overflow-scrolling: touch",
   "overscroll-behavior: contain",
   "max-height: min(45vh, 32rem)",
+  ".gentle-memories-view-note-preview",
+  "max-height: max(22rem, calc(100vh - 14rem))",
   ".gentle-memories-ai-loading"
 ]) {
   if (!stylesSource.includes(styleSnippet)) {
@@ -174,6 +176,7 @@ const renderedViews = [];
 const openedFiles = [];
 const createdWorkspaceTabs = [];
 const createdRightLeaves = [];
+const detachedLeaves = [];
 const scrollIntoViewCalls = [];
 let layoutCallbacks = [];
 let delayMarkdownRendering = false;
@@ -539,6 +542,15 @@ function createMockApp(entries = [{
             this.view = viewCreator(this);
             await this.view.onOpen?.();
             renderedViews.push(this.view.containerEl);
+          },
+          async detach() {
+            const leafIndex = leaves.indexOf(this);
+
+            if (leafIndex >= 0) {
+              leaves.splice(leafIndex, 1);
+            }
+
+            detachedLeaves.push(this);
           }
         };
         leaves.push(leaf);
@@ -649,7 +661,7 @@ const originalFetch = globalThis.fetch;
 const configuredTags = ["journal", "diary", "note"];
 
 async function flushPromises() {
-  for (let index = 0; index < 10; index += 1) {
+  for (let index = 0; index < 30; index += 1) {
     await Promise.resolve();
   }
 }
@@ -864,7 +876,10 @@ if (layoutCallbacks.length !== 0) {
 layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
+renderedViews.length = 0;
 openedFiles.length = 0;
+createdWorkspaceTabs.length = 0;
+detachedLeaves.length = 0;
 const unusableManualPlugin = new GentleMemoriesPlugin(createMockApp([
   {
     path: "Memories/2024-01-01 Empty Journal.md",
@@ -890,6 +905,21 @@ if (renderedModals.length !== 0) {
 
 if (!notices.includes("No journal notes found for the configured tags.")) {
   throw new Error("Manual show memory command must show a notice when matching notes have no usable excerpt");
+}
+
+notices.length = 0;
+renderedViews.length = 0;
+createdWorkspaceTabs.length = 0;
+detachedLeaves.length = 0;
+unusableManualPlugin.ribbonIcons.find((ribbonIcon) => ribbonIcon.icon === "sparkles")?.callback();
+await flushPromises();
+
+if (!notices.includes("No journal notes found for the configured tags.")) {
+  throw new Error("Show memory ribbon icon must show a notice when no usable memory exists");
+}
+
+if (createdWorkspaceTabs.length !== 0 || renderedViews.length !== 0) {
+  throw new Error("Show memory ribbon icon must not leave an empty memory tab when no usable memory exists");
 }
 
 layoutCallbacks = [];
@@ -1039,6 +1069,91 @@ if (!historyReloadedPlugin.data?.displayHistory?.shown?.["Memories/2024-03-15 Jo
 
 if (!historyReloadedPlugin.data?.displayHistory?.shown?.["Memories/2024-04-20 Diary.md"]) {
   throw new Error("Display history must add entries after reload");
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+renderedViews.length = 0;
+openedFiles.length = 0;
+createdWorkspaceTabs.length = 0;
+detachedLeaves.length = 0;
+const restoredViewPlugin = new GentleMemoriesPlugin(createMockApp());
+restoredViewPlugin.data = { settings: { showOnStartup: false } };
+const restoredViewApp = restoredViewPlugin.app;
+await restoredViewPlugin.onload();
+const restoredLeaf = restoredViewApp.workspace.createViewLeaf("tab");
+await restoredLeaf.setViewState({
+  type: "gentle-memories-today-memory",
+  active: true
+});
+await flushPromises();
+
+if (!detachedLeaves.includes(restoredLeaf)) {
+  throw new Error("Restored empty Today's memory view must detach itself quietly on startup");
+}
+
+if (renderedViews.at(-1)?.texts.includes("No journal notes found for the configured tags.")) {
+  throw new Error("Restored empty Today's memory view must not show an empty-state tab on startup");
+}
+
+layoutCallbacks = [];
+notices.length = 0;
+renderedModals.length = 0;
+renderedViews.length = 0;
+openedFiles.length = 0;
+createdWorkspaceTabs.length = 0;
+detachedLeaves.length = 0;
+const rotatingViewPlugin = new GentleMemoriesPlugin(createMockApp([
+  {
+    path: "Memories/2024-05-01 First.md",
+    basename: "2024-05-01 First",
+    date: "2024-05-01",
+    excerpt: "First memory in the refresh rotation."
+  },
+  {
+    path: "Memories/2024-05-02 Second.md",
+    basename: "2024-05-02 Second",
+    date: "2024-05-02",
+    excerpt: "Second memory in the refresh rotation."
+  },
+  {
+    path: "Memories/2024-05-03 Third.md",
+    basename: "2024-05-03 Third",
+    date: "2024-05-03",
+    excerpt: "Third memory in the refresh rotation."
+  }
+]));
+rotatingViewPlugin.data = { settings: { showOnStartup: false } };
+await rotatingViewPlugin.onload();
+rotatingViewPlugin.ribbonIcons.find((ribbonIcon) => ribbonIcon.icon === "sparkles")?.callback();
+await flushPromises();
+
+let rotatingViewText = renderedViews.at(-1)?.texts.join("\n") ?? "";
+
+if (!rotatingViewText.includes("2024-05-01 First")) {
+  throw new Error("Memory view refresh rotation must start with the first never-shown memory");
+}
+
+await clickViewButton("Refresh");
+rotatingViewText = renderedViews.at(-1)?.texts.join("\n") ?? "";
+
+if (!rotatingViewText.includes("2024-05-02 Second")) {
+  throw new Error("Memory view refresh must prefer the next never-shown memory");
+}
+
+await clickViewButton("Refresh");
+rotatingViewText = renderedViews.at(-1)?.texts.join("\n") ?? "";
+
+if (!rotatingViewText.includes("2024-05-03 Third")) {
+  throw new Error("Memory view refresh must continue through all never-shown memories");
+}
+
+await clickViewButton("Refresh");
+rotatingViewText = renderedViews.at(-1)?.texts.join("\n") ?? "";
+
+if (!rotatingViewText.includes("2024-05-01 First")) {
+  throw new Error("Memory view refresh must rotate back to the least-recently-shown memory after all are shown");
 }
 
 layoutCallbacks = [];
@@ -1380,8 +1495,8 @@ delayMarkdownRendering = true;
 const longNoteViewPlugin = new GentleMemoriesPlugin(createMockApp([{
   path: "Memories/2024-04-01 Journal.md",
   date: "2024-04-01",
-  excerpt: `${longNoteStart} ${"additional sentence. ".repeat(35)} ${longNotePreviewBoundary}`,
-  extraContent: `${"Middle paragraph with [[wikilink]] and ![[image.png]]. ".repeat(45)}\n\n${longNoteEnd}`
+  excerpt: `${longNoteStart} ${"additional sentence. ".repeat(35)}`,
+  extraContent: `${"Middle paragraph with [[wikilink]] and ![[image.png]]. ".repeat(80)}\n\n${longNotePreviewBoundary}\n\n${longNoteEnd}`
 }]));
 longNoteViewPlugin.data = { settings: { showOnStartup: false, aiEnabled: false } };
 await longNoteViewPlugin.onload();
@@ -1406,6 +1521,10 @@ if (!longNoteView?.buttons.includes("Show more")) {
 if (!longNoteView.classes.some((className) => className.includes("gentle-memories-view-scroll")) ||
   !longNoteView.classes.some((className) => className.includes("gentle-memories-view-scroll-collapsed"))) {
   throw new Error(`Collapsed long memory view must render inside the scroll container with the collapsed state class: ${JSON.stringify(longNoteView.classes)}`);
+}
+
+if (!longNoteView.classes.some((className) => className.includes("gentle-memories-view-note-preview"))) {
+  throw new Error("Collapsed long memory view must use the adaptive memory view preview class");
 }
 
 await clickViewButton("Show more");
