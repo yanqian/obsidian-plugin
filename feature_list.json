@@ -401,6 +401,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F051",
+      "description": "Address ObsidianReviewBot feedback by removing the unexpected await on WorkspaceLeaf.detach while preserving restored empty memory view cleanup behavior.",
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
+      "last_error": ""
     }
   ]
 }

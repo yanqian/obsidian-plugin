@@ -1077,13 +1077,15 @@ class TodayMemoryView extends ItemView {
     });
   }
 
-  private async closeRestoredEmptyView(): Promise<void> {
+  private closeRestoredEmptyView(): Promise<void> {
     this.containerEl.empty();
-    const leafWithDetach = this.leaf as WorkspaceLeaf & { detach?: () => Promise<void> };
+    const leafWithDetach = this.leaf as WorkspaceLeaf & { detach?: () => void };
 
     if (typeof leafWithDetach.detach === "function") {
-      await leafWithDetach.detach();
+      leafWithDetach.detach();
     }
+
+    return Promise.resolve();
   }
 
   private restoreScrollPosition(options: { scrollTarget?: "top" | "preserve"; preservedScrollTop?: number }): void {

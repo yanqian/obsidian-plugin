@@ -819,12 +819,13 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
       text: "No journal notes found for the configured tags."
     });
   }
-  async closeRestoredEmptyView() {
+  closeRestoredEmptyView() {
     this.containerEl.empty();
     const leafWithDetach = this.leaf;
     if (typeof leafWithDetach.detach === "function") {
-      await leafWithDetach.detach();
+      leafWithDetach.detach();
     }
+    return Promise.resolve();
   }
   restoreScrollPosition(options) {
     var _a;

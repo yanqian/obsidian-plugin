@@ -741,3 +741,13 @@ Fix the memory view scroll position after progressive `Show more`:
 - `Show less` should still return the compact preview to the top so the collapsed note and controls are reachable.
 - Preserve existing action-row order, sticky action accessibility, AI lead-in behavior, stale Markdown render protection, memory selection, and modal behavior.
 - Add harness coverage for preserving the memory view scroll anchor after progressive `Show more`.
+
+### 15.31 ReviewBot Non-Promise Await Cleanup
+
+Address the latest ObsidianReviewBot required feedback:
+
+- Remove the unexpected `await` on the restored memory view leaf detach call because `WorkspaceLeaf.detach()` is not a Promise-returning API.
+- Keep restored empty memory view cleanup behavior unchanged.
+- Keep `TodayMemoryView.onOpen()` compatible with Obsidian's view lifecycle without reintroducing an async method that has no awaited Promise.
+- Preserve existing memory view startup cleanup, tab reuse, progressive reveal, AI lead-in, and modal behavior.
+- Add harness or static coverage so the same non-Promise detach await does not return.

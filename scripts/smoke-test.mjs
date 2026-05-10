@@ -157,6 +157,10 @@ if ((mainSource.match(/text\.inputEl\.type = "password"/g) ?? []).length < 2) {
   throw new Error("main.ts must use password-style inputs for provider API keys");
 }
 
+if (mainSource.includes("await leafWithDetach.detach()")) {
+  throw new Error("main.ts must not await WorkspaceLeaf.detach because ObsidianReviewBot flags it as a non-Promise await");
+}
+
 const requiredDiscoverySnippets = [
   "journalTags: [\"journal\", \"diary\", \"note\"]",
   "noteHasConfiguredJournalTag",
