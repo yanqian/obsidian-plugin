@@ -11,6 +11,7 @@ Module._load = function loadWithObsidianMock(request, parent, isMain) {
         return cache?.__allTags;
       },
       MarkdownRenderer: { render: () => Promise.resolve() },
+      ItemView: class {},
       Modal: class {},
       Notice: class {},
       Plugin: class {},

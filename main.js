@@ -58,6 +58,8 @@ var SHOW_MEMORY_COMMAND_ID = "show-memory";
 var SHOW_MEMORY_COMMAND_NAME = "Show memory";
 var SHOW_MEMORY_RIBBON_ICON = "sparkles";
 var SHOW_MEMORY_RIBBON_TOOLTIP = "Show memory";
+var TODAY_MEMORY_VIEW_TYPE = "gentle-memories-today-memory";
+var TODAY_MEMORY_VIEW_TITLE = "Today's memory";
 var OPENAI_REFLECTION_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 var OPENAI_REFLECTION_MODEL = "gpt-4o-mini";
 var CLAUDE_REFLECTION_ENDPOINT = "https://api.anthropic.com/v1/messages";
@@ -204,6 +206,10 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
   }
   async onload() {
     await this.loadSettings();
+    this.registerView(
+      TODAY_MEMORY_VIEW_TYPE,
+      (leaf) => new TodayMemoryView(leaf, this)
+    );
     this.addCommand({
       id: SHOW_MEMORY_COMMAND_ID,
       name: SHOW_MEMORY_COMMAND_NAME,
@@ -212,7 +218,7 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       }
     });
     this.addRibbonIcon(SHOW_MEMORY_RIBBON_ICON, SHOW_MEMORY_RIBBON_TOOLTIP, () => {
-      this.showManualMemory();
+      void this.openTodayMemoryView();
     });
     this.addSettingTab(new GentleMemoriesSettingTab(this));
     this.queueStartupMemoryDisplay();
@@ -252,6 +258,36 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       new import_obsidian.Notice("No journal notes found for the configured tags.");
     }
     return false;
+  }
+  async openTodayMemoryView(options = {}) {
+    const leaf = await this.getTodayMemoryLeaf();
+    const view = leaf.view;
+    if (view instanceof TodayMemoryView) {
+      return view.loadMemory(options);
+    }
+    return false;
+  }
+  async selectMemoryForView(excludedPath) {
+    return this.selectMemory(excludedPath);
+  }
+  async recordMemoryShownFromView(memory) {
+    await this.recordMemoryShown(memory, Date.now());
+  }
+  async generateReflectionForView(memory) {
+    return this.generateReflection(memory);
+  }
+  canAutoLoadAiReflection() {
+    return this.settings.aiEnabled && Boolean(this.getSelectedApiKey());
+  }
+  async getTodayMemoryLeaf() {
+    const existingLeaf = this.app.workspace.getLeavesOfType(TODAY_MEMORY_VIEW_TYPE)[0];
+    const leaf = existingLeaf != null ? existingLeaf : this.app.workspace.getRightLeaf(false);
+    await leaf.setViewState({
+      type: TODAY_MEMORY_VIEW_TYPE,
+      active: true
+    });
+    this.app.workspace.revealLeaf(leaf);
+    return leaf;
   }
   async selectMemory(excludedPath) {
     var _a;
@@ -502,6 +538,165 @@ var GentleMemoriesPlugin = class extends import_obsidian.Plugin {
       return;
     }
     console.debug("[Gentle Memories debug]", event, details);
+  }
+};
+var TodayMemoryView = class extends import_obsidian.ItemView {
+  constructor(leaf, plugin) {
+    super(leaf);
+    this.plugin = plugin;
+    this.reflectionLoading = false;
+    this.expanded = false;
+  }
+  getViewType() {
+    return TODAY_MEMORY_VIEW_TYPE;
+  }
+  getDisplayText() {
+    return TODAY_MEMORY_VIEW_TITLE;
+  }
+  getIcon() {
+    return SHOW_MEMORY_RIBBON_ICON;
+  }
+  async onOpen() {
+    this.render();
+  }
+  async loadMemory(options = {}) {
+    var _a;
+    const showNotice = (_a = options.showNotice) != null ? _a : true;
+    const memory = await this.plugin.selectMemoryForView();
+    if (!memory) {
+      this.memory = void 0;
+      this.renderEmpty();
+      if (showNotice) {
+        new import_obsidian.Notice("No journal notes found for the configured tags.");
+      }
+      return false;
+    }
+    this.memory = memory;
+    this.reflectionText = void 0;
+    this.reflectionLoading = false;
+    this.automaticReflectionPath = void 0;
+    this.expanded = false;
+    this.render();
+    await this.plugin.recordMemoryShownFromView(memory);
+    return true;
+  }
+  render() {
+    var _a;
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.addClass("gentle-memories-sidebar-view");
+    if (!this.memory) {
+      this.renderEmpty();
+      return;
+    }
+    containerEl.createEl("h2", { text: this.memory.title });
+    containerEl.createEl("p", {
+      cls: "gentle-memories-date",
+      text: (_a = this.memory.date) != null ? _a : this.memory.path
+    });
+    if (this.reflectionText || this.reflectionLoading) {
+      const reflectionEl = containerEl.createDiv({ cls: "gentle-memories-ai-lead-in" });
+      reflectionEl.createEl("h3", { text: "Memory lead-in" });
+      reflectionEl.createEl("p", {
+        cls: this.reflectionLoading ? "gentle-memories-ai-loading" : void 0,
+        text: this.reflectionLoading ? "Loading memory lead-in..." : this.reflectionText
+      });
+    }
+    containerEl.createEl("h3", {
+      cls: "gentle-memories-original-note-heading",
+      text: "Original note"
+    });
+    const isCollapsedLongNote = !this.expanded && this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS;
+    const noteContentEl = containerEl.createDiv({
+      cls: isCollapsedLongNote ? "gentle-memories-note-content gentle-memories-note-preview" : "gentle-memories-note-content"
+    });
+    const renderedMarkdown = this.expanded ? this.memory.markdownBody : createMarkdownPreview(this.memory.markdownBody);
+    void import_obsidian.MarkdownRenderer.render(this.app, renderedMarkdown, noteContentEl, this.memory.path, this).catch(() => {
+      var _a2, _b;
+      noteContentEl.createEl("p", {
+        cls: "gentle-memories-excerpt",
+        text: (_b = (_a2 = this.memory) == null ? void 0 : _a2.excerpt) != null ? _b : ""
+      });
+    });
+    const buttonContainer = containerEl.createDiv({ cls: "gentle-memories-buttons" });
+    const buttons = new import_obsidian.Setting(buttonContainer);
+    if (this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS) {
+      buttons.addButton((button) => button.setButtonText(this.expanded ? "Show less" : "Show more").onClick(() => {
+        this.expanded = !this.expanded;
+        this.render();
+      }));
+    }
+    buttons.addButton((button) => button.setButtonText("Open note").onClick(() => {
+      void this.openSourceNote();
+    })).addButton((button) => button.setButtonText("Refresh").onClick(() => {
+      void this.showNextMemory();
+    }));
+    if (this.plugin.settings.aiEnabled) {
+      buttons.addButton((button) => button.setButtonText("Memories").onClick(() => {
+        void this.showReflection();
+      }));
+    }
+    this.startAutomaticReflectionLoad();
+  }
+  renderEmpty() {
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.addClass("gentle-memories-sidebar-view");
+    containerEl.createEl("h2", { text: TODAY_MEMORY_VIEW_TITLE });
+    containerEl.createEl("p", {
+      cls: "gentle-memories-empty-state",
+      text: "No journal notes found for the configured tags."
+    });
+  }
+  async openSourceNote() {
+    if (!this.memory) {
+      return;
+    }
+    await this.app.workspace.getLeaf(false).openFile(this.memory.sourceFile);
+  }
+  async showNextMemory() {
+    if (!this.memory) {
+      await this.loadMemory();
+      return;
+    }
+    const nextMemory = await this.plugin.selectMemoryForView(this.memory.path);
+    if (nextMemory) {
+      this.memory = nextMemory;
+      this.reflectionText = void 0;
+      this.reflectionLoading = false;
+      this.automaticReflectionPath = void 0;
+      this.expanded = false;
+      this.render();
+      await this.plugin.recordMemoryShownFromView(nextMemory);
+    }
+  }
+  async showReflection() {
+    var _a;
+    if (!this.memory) {
+      return;
+    }
+    const memoryPath = this.memory.path;
+    const reflection = await this.plugin.generateReflectionForView(this.memory);
+    if (((_a = this.memory) == null ? void 0 : _a.path) !== memoryPath) {
+      return;
+    }
+    this.reflectionLoading = false;
+    if (reflection) {
+      this.reflectionText = reflection;
+    }
+    this.render();
+  }
+  startAutomaticReflectionLoad() {
+    if (!this.memory || !this.plugin.settings.aiEnabled || !this.plugin.canAutoLoadAiReflection() || this.reflectionText) {
+      return;
+    }
+    if (this.automaticReflectionPath === this.memory.path) {
+      return;
+    }
+    this.automaticReflectionPath = this.memory.path;
+    this.reflectionLoading = true;
+    this.render();
+    void this.showReflection();
   }
 };
 var MemoryModal = class extends import_obsidian.Modal {

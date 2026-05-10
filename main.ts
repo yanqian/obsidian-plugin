@@ -1,4 +1,4 @@
-import { getAllTags, MarkdownRenderer, Modal, Notice, Plugin, PluginSettingTab, requestUrl, Setting, type CachedMetadata, type Component, type RequestUrlResponse, type TFile } from "obsidian";
+import { getAllTags, ItemView, MarkdownRenderer, Modal, Notice, Plugin, PluginSettingTab, requestUrl, Setting, type CachedMetadata, type Component, type RequestUrlResponse, type TFile, type WorkspaceLeaf } from "obsidian";
 
 interface PluginSettings {
   journalTags: string[];
@@ -81,6 +81,8 @@ const SHOW_MEMORY_COMMAND_ID = "show-memory";
 const SHOW_MEMORY_COMMAND_NAME = "Show memory";
 const SHOW_MEMORY_RIBBON_ICON = "sparkles";
 const SHOW_MEMORY_RIBBON_TOOLTIP = "Show memory";
+const TODAY_MEMORY_VIEW_TYPE = "gentle-memories-today-memory";
+const TODAY_MEMORY_VIEW_TITLE = "Today's memory";
 const OPENAI_REFLECTION_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 const OPENAI_REFLECTION_MODEL = "gpt-4o-mini";
 const CLAUDE_REFLECTION_ENDPOINT = "https://api.anthropic.com/v1/messages";
@@ -291,6 +293,11 @@ export default class GentleMemoriesPlugin extends Plugin {
   async onload(): Promise<void> {
     await this.loadSettings();
 
+    this.registerView(
+      TODAY_MEMORY_VIEW_TYPE,
+      (leaf) => new TodayMemoryView(leaf, this)
+    );
+
     this.addCommand({
       id: SHOW_MEMORY_COMMAND_ID,
       name: SHOW_MEMORY_COMMAND_NAME,
@@ -299,7 +306,7 @@ export default class GentleMemoriesPlugin extends Plugin {
       }
     });
     this.addRibbonIcon(SHOW_MEMORY_RIBBON_ICON, SHOW_MEMORY_RIBBON_TOOLTIP, () => {
-      this.showManualMemory();
+      void this.openTodayMemoryView();
     });
 
     this.addSettingTab(new GentleMemoriesSettingTab(this));
@@ -346,6 +353,46 @@ export default class GentleMemoriesPlugin extends Plugin {
     }
 
     return false;
+  }
+
+  async openTodayMemoryView(options: { showNotice?: boolean } = {}): Promise<boolean> {
+    const leaf = await this.getTodayMemoryLeaf();
+    const view = leaf.view;
+
+    if (view instanceof TodayMemoryView) {
+      return view.loadMemory(options);
+    }
+
+    return false;
+  }
+
+  async selectMemoryForView(excludedPath?: string): Promise<MemoryEntry | null> {
+    return this.selectMemory(excludedPath);
+  }
+
+  async recordMemoryShownFromView(memory: MemoryEntry): Promise<void> {
+    await this.recordMemoryShown(memory, Date.now());
+  }
+
+  async generateReflectionForView(memory: MemoryEntry): Promise<string | null> {
+    return this.generateReflection(memory);
+  }
+
+  canAutoLoadAiReflection(): boolean {
+    return this.settings.aiEnabled && Boolean(this.getSelectedApiKey());
+  }
+
+  private async getTodayMemoryLeaf(): Promise<WorkspaceLeaf> {
+    const existingLeaf = this.app.workspace.getLeavesOfType(TODAY_MEMORY_VIEW_TYPE)[0];
+    const leaf = existingLeaf ?? this.app.workspace.getRightLeaf(false);
+
+    await leaf.setViewState({
+      type: TODAY_MEMORY_VIEW_TYPE,
+      active: true
+    });
+    this.app.workspace.revealLeaf(leaf);
+
+    return leaf;
   }
 
   private async selectMemory(excludedPath?: string): Promise<MemoryEntry | null> {
@@ -650,6 +697,219 @@ export default class GentleMemoriesPlugin extends Plugin {
     }
 
     console.debug("[Gentle Memories debug]", event, details);
+  }
+}
+
+class TodayMemoryView extends ItemView {
+  private memory: MemoryEntry | undefined;
+  private reflectionText: string | undefined;
+  private reflectionLoading = false;
+  private automaticReflectionPath: string | undefined;
+  private expanded = false;
+
+  constructor(
+    leaf: WorkspaceLeaf,
+    private readonly plugin: GentleMemoriesPlugin
+  ) {
+    super(leaf);
+  }
+
+  getViewType(): string {
+    return TODAY_MEMORY_VIEW_TYPE;
+  }
+
+  getDisplayText(): string {
+    return TODAY_MEMORY_VIEW_TITLE;
+  }
+
+  getIcon(): string {
+    return SHOW_MEMORY_RIBBON_ICON;
+  }
+
+  async onOpen(): Promise<void> {
+    this.render();
+  }
+
+  async loadMemory(options: { showNotice?: boolean } = {}): Promise<boolean> {
+    const showNotice = options.showNotice ?? true;
+    const memory = await this.plugin.selectMemoryForView();
+
+    if (!memory) {
+      this.memory = undefined;
+      this.renderEmpty();
+
+      if (showNotice) {
+        new Notice("No journal notes found for the configured tags.");
+      }
+
+      return false;
+    }
+
+    this.memory = memory;
+    this.reflectionText = undefined;
+    this.reflectionLoading = false;
+    this.automaticReflectionPath = undefined;
+    this.expanded = false;
+    this.render();
+    await this.plugin.recordMemoryShownFromView(memory);
+    return true;
+  }
+
+  private render(): void {
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.addClass("gentle-memories-sidebar-view");
+
+    if (!this.memory) {
+      this.renderEmpty();
+      return;
+    }
+
+    containerEl.createEl("h2", { text: this.memory.title });
+    containerEl.createEl("p", {
+      cls: "gentle-memories-date",
+      text: this.memory.date ?? this.memory.path
+    });
+
+    if (this.reflectionText || this.reflectionLoading) {
+      const reflectionEl = containerEl.createDiv({ cls: "gentle-memories-ai-lead-in" });
+      reflectionEl.createEl("h3", { text: "Memory lead-in" });
+      reflectionEl.createEl("p", {
+        cls: this.reflectionLoading ? "gentle-memories-ai-loading" : undefined,
+        text: this.reflectionLoading ? "Loading memory lead-in..." : this.reflectionText
+      });
+    }
+
+    containerEl.createEl("h3", {
+      cls: "gentle-memories-original-note-heading",
+      text: "Original note"
+    });
+    const isCollapsedLongNote = !this.expanded && this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS;
+    const noteContentEl = containerEl.createDiv({
+      cls: isCollapsedLongNote
+        ? "gentle-memories-note-content gentle-memories-note-preview"
+        : "gentle-memories-note-content"
+    });
+    const renderedMarkdown = this.expanded
+      ? this.memory.markdownBody
+      : createMarkdownPreview(this.memory.markdownBody);
+
+    void MarkdownRenderer
+      .render(this.app, renderedMarkdown, noteContentEl, this.memory.path, this)
+      .catch(() => {
+        noteContentEl.createEl("p", {
+          cls: "gentle-memories-excerpt",
+          text: this.memory?.excerpt ?? ""
+        });
+      });
+
+    const buttonContainer = containerEl.createDiv({ cls: "gentle-memories-buttons" });
+    const buttons = new Setting(buttonContainer);
+
+    if (this.memory.markdownBody.length > RICH_MEMORY_PREVIEW_CHARACTERS) {
+      buttons.addButton((button) => button
+        .setButtonText(this.expanded ? "Show less" : "Show more")
+        .onClick(() => {
+          this.expanded = !this.expanded;
+          this.render();
+        }));
+    }
+
+    buttons
+      .addButton((button) => button
+        .setButtonText("Open note")
+        .onClick(() => {
+          void this.openSourceNote();
+        }))
+      .addButton((button) => button
+        .setButtonText("Refresh")
+        .onClick(() => {
+          void this.showNextMemory();
+        }));
+
+    if (this.plugin.settings.aiEnabled) {
+      buttons.addButton((button) => button
+        .setButtonText("Memories")
+        .onClick(() => {
+          void this.showReflection();
+        }));
+    }
+
+    this.startAutomaticReflectionLoad();
+  }
+
+  private renderEmpty(): void {
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.addClass("gentle-memories-sidebar-view");
+    containerEl.createEl("h2", { text: TODAY_MEMORY_VIEW_TITLE });
+    containerEl.createEl("p", {
+      cls: "gentle-memories-empty-state",
+      text: "No journal notes found for the configured tags."
+    });
+  }
+
+  private async openSourceNote(): Promise<void> {
+    if (!this.memory) {
+      return;
+    }
+
+    await this.app.workspace.getLeaf(false).openFile(this.memory.sourceFile);
+  }
+
+  private async showNextMemory(): Promise<void> {
+    if (!this.memory) {
+      await this.loadMemory();
+      return;
+    }
+
+    const nextMemory = await this.plugin.selectMemoryForView(this.memory.path);
+
+    if (nextMemory) {
+      this.memory = nextMemory;
+      this.reflectionText = undefined;
+      this.reflectionLoading = false;
+      this.automaticReflectionPath = undefined;
+      this.expanded = false;
+      this.render();
+      await this.plugin.recordMemoryShownFromView(nextMemory);
+    }
+  }
+
+  private async showReflection(): Promise<void> {
+    if (!this.memory) {
+      return;
+    }
+
+    const memoryPath = this.memory.path;
+    const reflection = await this.plugin.generateReflectionForView(this.memory);
+
+    if (this.memory?.path !== memoryPath) {
+      return;
+    }
+
+    this.reflectionLoading = false;
+
+    if (reflection) {
+      this.reflectionText = reflection;
+    }
+
+    this.render();
+  }
+
+  private startAutomaticReflectionLoad(): void {
+    if (!this.memory || !this.plugin.settings.aiEnabled || !this.plugin.canAutoLoadAiReflection() || this.reflectionText) {
+      return;
+    }
+
+    if (this.automaticReflectionPath === this.memory.path) {
+      return;
+    }
+
+    this.automaticReflectionPath = this.memory.path;
+    this.reflectionLoading = true;
+    this.render();
+    void this.showReflection();
   }
 }
 

@@ -164,6 +164,7 @@ for (const snippet of requiredDiscoverySnippets) {
 const originalModuleLoad = Module._load;
 const notices = [];
 const renderedModals = [];
+const renderedViews = [];
 const openedFiles = [];
 let layoutCallbacks = [];
 
@@ -209,6 +210,10 @@ class MockElement {
 
     return this;
   }
+
+  addClass(className) {
+    this.classes.push(className);
+  }
 }
 
 class MockModal {
@@ -249,12 +254,24 @@ class MockPlugin {
     this.settingTabs.push(settingTab);
   }
 
+  registerView(type, viewCreator) {
+    this.app.workspace.viewCreators.set(type, viewCreator);
+  }
+
   async loadData() {
     return this.data;
   }
 
   async saveData(data) {
     this.data = data;
+  }
+}
+
+class MockItemView {
+  constructor(leaf) {
+    this.leaf = leaf;
+    this.app = leaf.app;
+    this.containerEl = new MockElement();
   }
 }
 
@@ -405,8 +422,9 @@ function createMockApp(entries = [{
     stat: { ctime: new Date(`${entry.date}T00:00:00.000Z`).getTime() }
   }));
   const entriesByPath = new Map(entries.map((entry) => [entry.path, entry]));
+  const leaves = [];
 
-  return {
+  const app = {
     vault: {
       getName() {
         return "Personal Vault";
@@ -440,8 +458,34 @@ function createMockApp(entries = [{
       }
     },
     workspace: {
+      viewCreators: new Map(),
       onLayoutReady(callback) {
         layoutCallbacks.push(callback);
+      },
+      getLeavesOfType(type) {
+        return leaves.filter((leaf) => leaf.view?.getViewType?.() === type);
+      },
+      getRightLeaf() {
+        const leaf = {
+          app,
+          view: undefined,
+          async setViewState(state) {
+            const viewCreator = app.workspace.viewCreators.get(state.type);
+
+            if (!viewCreator) {
+              throw new Error(`No registered view for ${state.type}`);
+            }
+
+            this.view = viewCreator(this);
+            await this.view.onOpen?.();
+            renderedViews.push(this.view.containerEl);
+          }
+        };
+        leaves.push(leaf);
+        return leaf;
+      },
+      revealLeaf(leaf) {
+        this.revealedLeaf = leaf;
       },
       getLeaf() {
         return {
@@ -452,6 +496,8 @@ function createMockApp(entries = [{
       }
     }
   };
+
+  return app;
 }
 
 Module._load = function loadWithObsidianMock(request, parent, isMain) {
@@ -470,6 +516,7 @@ Module._load = function loadWithObsidianMock(request, parent, isMain) {
         }
       },
       Modal: MockModal,
+      ItemView: MockItemView,
       Notice: MockNotice,
       Plugin: MockPlugin,
       PluginSettingTab: MockPluginSettingTab,
@@ -596,6 +643,7 @@ if (typeof GentleMemoriesPlugin !== "function") {
 layoutCallbacks = [];
 notices.length = 0;
 renderedModals.length = 0;
+renderedViews.length = 0;
 openedFiles.length = 0;
 const disabledStartupPlugin = new GentleMemoriesPlugin(createMockApp());
 disabledStartupPlugin.data = { settings: { showOnStartup: false } };
@@ -653,16 +701,42 @@ if (layoutCallbacks.length !== 0) {
 }
 
 renderedModals.length = 0;
+renderedViews.length = 0;
 openedFiles.length = 0;
 notices.length = 0;
 showMemoryRibbonIcon.callback();
 await flushPromises();
 
 if (notices.length !== 0) {
-  throw new Error("Show memory ribbon icon must display a memory instead of a notice when notes are available");
+  throw new Error("Show memory ribbon icon must open a memory sidebar instead of a notice when notes are available");
 }
 
-assertMemoryModal("Show memory ribbon icon must use the existing manual memory display flow");
+if (renderedModals.length !== 0) {
+  throw new Error(`Show memory ribbon icon must route to the persistent sidebar view instead of the modal; rendered ${renderedModals.length} modal(s)`);
+}
+
+if (renderedViews.length === 0) {
+  throw new Error("Show memory ribbon icon must open the Today's memory sidebar view");
+}
+
+const sidebarView = renderedViews.at(-1);
+const sidebarText = sidebarView.texts.join("\n");
+
+for (const expected of ["2024-03-15 Journal", "2024-03-14", "Original note", "A compact memory excerpt with enough detail to display."]) {
+  if (!sidebarText.includes(expected)) {
+    throw new Error(`Today's memory sidebar view must render ${expected}`);
+  }
+}
+
+for (const label of ["Open note", "Refresh"]) {
+  if (!sidebarView.buttons.includes(label)) {
+    throw new Error(`Today's memory sidebar view must include the ${label} action`);
+  }
+}
+
+if (!sidebarView.classes.some((className) => className.includes("gentle-memories-sidebar-view"))) {
+  throw new Error("Today's memory sidebar view must use dedicated sidebar styling");
+}
 
 if (layoutCallbacks.length !== 0) {
   throw new Error("Show memory ribbon icon must not depend on startup layout scheduling");

@@ -1,3 +1,23 @@
+.gentle-memories-sidebar-view {
+  padding: 0.75rem;
+}
+
+.gentle-memories-sidebar-view h2 {
+  margin: 0 0 0.35rem;
+  font-size: var(--font-ui-large);
+}
+
+.gentle-memories-sidebar-view .gentle-memories-date {
+  margin: 0 0 0.75rem;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  overflow-wrap: anywhere;
+}
+
+.gentle-memories-empty-state {
+  color: var(--text-muted);
+}
+
 .gentle-memories-ai-lead-in {
   margin: 1rem 0;
   padding: 0.75rem 0.9rem;
