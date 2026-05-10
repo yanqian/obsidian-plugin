@@ -75,6 +75,7 @@ This file is the durable coverage index for `feature_list.json`. A feature may o
 | F049 | Harness + contract | `npm run test:harness` and `npm run test:contract` verify memory view action-row order, shared action membership below the note preview, state-aware AI action labels, loading disablement, duplicate-request prevention, and post-generation `Regenerate` state. |
 | F050 | Harness + contract | `npm run test:harness` and `npm run test:contract` verify progressive memory view `Show more` preserves the previous scroll anchor instead of jumping to the original note heading. |
 | F051 | Harness + contract | `npm run test:harness` and `npm run test:contract` verify restored empty memory view cleanup avoids the ReviewBot-flagged non-Promise `detach()` await. |
+| F052 | Harness + contract | `npm run test:harness` and `npm run test:contract` verify `TodayMemoryView.onOpen()` returns a Promise directly instead of using a ReviewBot-flagged async lifecycle signature. |
 
 ## Verifier
 

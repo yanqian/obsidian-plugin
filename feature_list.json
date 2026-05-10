@@ -409,6 +409,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F052",
+      "description": "Address ObsidianReviewBot feedback by removing the async TodayMemoryView.onOpen signature while preserving restored empty memory cleanup and loaded memory rendering behavior.",
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
+      "last_error": ""
     }
   ]
 }

@@ -161,6 +161,10 @@ if (mainSource.includes("await leafWithDetach.detach()")) {
   throw new Error("main.ts must not await WorkspaceLeaf.detach because ObsidianReviewBot flags it as a non-Promise await");
 }
 
+if (mainSource.includes("async onOpen(): Promise<void>")) {
+  throw new Error("TodayMemoryView.onOpen must return a Promise directly instead of using an async method that ReviewBot can flag");
+}
+
 const requiredDiscoverySnippets = [
   "journalTags: [\"journal\", \"diary\", \"note\"]",
   "noteHasConfiguredJournalTag",

@@ -863,15 +863,16 @@ class TodayMemoryView extends ItemView {
     return SHOW_MEMORY_RIBBON_ICON;
   }
 
-  async onOpen(): Promise<void> {
+  onOpen(): Promise<void> {
     if (!this.memory && !this.plugin.isOpeningTodayMemoryView()) {
-      await this.closeRestoredEmptyView();
-      return;
+      return this.closeRestoredEmptyView();
     }
 
     if (this.memory) {
       this.render();
     }
+
+    return Promise.resolve();
   }
 
   async loadMemory(options: { showNotice?: boolean } = {}): Promise<boolean> {

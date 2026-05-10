@@ -751,3 +751,13 @@ Address the latest ObsidianReviewBot required feedback:
 - Keep `TodayMemoryView.onOpen()` compatible with Obsidian's view lifecycle without reintroducing an async method that has no awaited Promise.
 - Preserve existing memory view startup cleanup, tab reuse, progressive reveal, AI lead-in, and modal behavior.
 - Add harness or static coverage so the same non-Promise detach await does not return.
+
+### 15.32 ReviewBot Async onOpen Cleanup
+
+Address the earlier ObsidianReviewBot required feedback for `TodayMemoryView.onOpen()`:
+
+- Avoid declaring `TodayMemoryView.onOpen()` as an `async` method when the lifecycle can be expressed by returning a Promise directly.
+- Preserve restored empty memory view cleanup by returning the cleanup Promise when the view is restored without an active memory.
+- Preserve normal memory rendering behavior when a memory is already loaded.
+- Keep Obsidian view lifecycle compatibility and avoid reintroducing ReviewBot's `async method has no await` warning.
+- Add harness or static coverage so the async `TodayMemoryView.onOpen()` signature does not return.

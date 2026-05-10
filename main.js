@@ -658,14 +658,14 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
   getIcon() {
     return SHOW_MEMORY_RIBBON_ICON;
   }
-  async onOpen() {
+  onOpen() {
     if (!this.memory && !this.plugin.isOpeningTodayMemoryView()) {
-      await this.closeRestoredEmptyView();
-      return;
+      return this.closeRestoredEmptyView();
     }
     if (this.memory) {
       this.render();
     }
+    return Promise.resolve();
   }
   async loadMemory(options = {}) {
     var _a;
