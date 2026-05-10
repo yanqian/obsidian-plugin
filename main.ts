@@ -265,6 +265,14 @@ export function createMarkdownPreview(markdown: string, maxCharacters = RICH_MEM
   return `${preview.trim()}\n\n...`;
 }
 
+export function createProgressiveMarkdownReveal(markdown: string, revealedCharacters: number): string {
+  if (markdown.length <= revealedCharacters) {
+    return markdown;
+  }
+
+  return `${markdown.slice(0, revealedCharacters).trim()}\n\n...`;
+}
+
 export function getNextMemoryViewRevealCharacters(
   markdown: string,
   currentCharacters: number,
@@ -987,7 +995,9 @@ class TodayMemoryView extends ItemView {
     });
     const renderedMarkdown = this.revealedCharacters >= this.memory.markdownBody.length
       ? this.memory.markdownBody
-      : createMarkdownPreview(this.memory.markdownBody, this.revealedCharacters);
+      : revealStarted
+        ? createProgressiveMarkdownReveal(this.memory.markdownBody, this.revealedCharacters)
+        : createMarkdownPreview(this.memory.markdownBody, this.revealedCharacters);
 
     this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
 

@@ -26,6 +26,7 @@ __export(main_exports, {
   createExcerpt: () => createExcerpt,
   createMarkdownBody: () => createMarkdownBody,
   createMarkdownPreview: () => createMarkdownPreview,
+  createProgressiveMarkdownReveal: () => createProgressiveMarkdownReveal,
   default: () => GentleMemoriesPlugin,
   deriveDate: () => deriveDate,
   deriveTitle: () => deriveTitle,
@@ -186,6 +187,14 @@ function createMarkdownPreview(markdown, maxCharacters = RICH_MEMORY_PREVIEW_CHA
   const minimumParagraphPreview = Math.min(80, Math.floor(maxCharacters / 3));
   const preview = paragraphBreak >= minimumParagraphPreview ? clipped.slice(0, paragraphBreak) : clipped;
   return `${preview.trim()}
+
+...`;
+}
+function createProgressiveMarkdownReveal(markdown, revealedCharacters) {
+  if (markdown.length <= revealedCharacters) {
+    return markdown;
+  }
+  return `${markdown.slice(0, revealedCharacters).trim()}
 
 ...`;
 }
@@ -751,7 +760,7 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
     const noteContentEl = scrollContainerEl.createDiv({
       cls: isCollapsedLongNote ? "gentle-memories-note-content gentle-memories-note-preview gentle-memories-view-note-preview" : "gentle-memories-note-content"
     });
-    const renderedMarkdown = this.revealedCharacters >= this.memory.markdownBody.length ? this.memory.markdownBody : createMarkdownPreview(this.memory.markdownBody, this.revealedCharacters);
+    const renderedMarkdown = this.revealedCharacters >= this.memory.markdownBody.length ? this.memory.markdownBody : revealStarted ? createProgressiveMarkdownReveal(this.memory.markdownBody, this.revealedCharacters) : createMarkdownPreview(this.memory.markdownBody, this.revealedCharacters);
     this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
     this.startAutomaticReflectionLoad();
     this.restoreScrollPosition(options.scrollTarget, originalNoteHeadingEl);

@@ -34,6 +34,7 @@ const {
   createExcerpt,
   createMarkdownBody,
   createMarkdownPreview,
+  createProgressiveMarkdownReveal,
   getNextMemoryViewRevealCharacters,
   deriveDate,
   deriveTitle,
@@ -106,6 +107,13 @@ assert.equal(firstRevealCount > 1800, true);
 assert.equal(firstRevealCount < progressiveMarkdown.length, true);
 const finalRevealCount = getNextMemoryViewRevealCharacters(progressiveMarkdown, progressiveMarkdown.length - 20, 900);
 assert.equal(finalRevealCount, progressiveMarkdown.length);
+const earlyBreakThenLongParagraph = `${"A ".repeat(850)}\n\n${"B ".repeat(2000)}\n\nFinal detail.`;
+const earlyBreakPreview = createMarkdownPreview(earlyBreakThenLongParagraph, 1800);
+const earlyBreakRevealCount = getNextMemoryViewRevealCharacters(earlyBreakThenLongParagraph, 1800, 900);
+const earlyBreakReveal = createProgressiveMarkdownReveal(earlyBreakThenLongParagraph, earlyBreakRevealCount);
+assert.equal(earlyBreakReveal.length > earlyBreakPreview.length, true);
+assert.equal(earlyBreakReveal.includes("B"), true);
+assert.equal(earlyBreakReveal.includes("Final detail."), false);
 
 assert.equal(createContentHash("same"), createContentHash("same"));
 assert.notEqual(createContentHash("same"), createContentHash("different"));
