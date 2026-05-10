@@ -353,6 +353,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F045",
+      "description": "Open the memory view as a normal workspace tab and fix memory view Show more/Show less expansion so stale Markdown renders cannot keep the compact preview visible.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
     }
   ]
 }

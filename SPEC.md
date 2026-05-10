@@ -656,3 +656,16 @@ Add a persistent Obsidian sidebar view for reviewing memories:
 - Preserve existing memory selection rules, display history, cooldown behavior, AI provider behavior, AI privacy constraints, cache behavior, and no-AI fallback behavior.
 - Show a clear empty state when no eligible note can be selected.
 - Update automated and manual verification coverage so the sidebar view cannot be marked complete without build, harness, contract, and human-style flow evidence.
+
+### 15.25 Memory View Tab Expansion Fix
+
+Fix the first memory view usability issues found during iOS testing:
+
+- The `sparkles` ribbon entry should open the memory view as a normal workspace tab in the main editor area, so it feels closer to a native note tab instead of a separate side panel or secondary window.
+- Reuse an existing memory view tab when one is already open instead of creating duplicate memory tabs.
+- Keep the view title and icon recognizable as a memory entry point.
+- `Show more` in the memory view must reliably replace the compact preview with the full note body.
+- `Show less` in the memory view must reliably return the note body to the compact preview.
+- Markdown rendering for the memory view must avoid stale asynchronous renders overriding the latest expanded or collapsed state.
+- Preserve the existing startup modal, command palette modal, memory selection, display history, AI lead-in, AI privacy, cache, and release metadata behavior unless directly required by this fix.
+- Add harness coverage for memory view tab placement and memory view `Show more` or `Show less` expansion behavior.
