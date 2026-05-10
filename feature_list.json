@@ -393,6 +393,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F050",
+      "description": "Preserve the memory view scroll anchor after progressive Show more so readers continue from the previous end instead of jumping back to the top or note heading.",
+      "passes": true,
+      "status": "done",
+      "attempts": 1,
+      "last_error": ""
     }
   ]
 }

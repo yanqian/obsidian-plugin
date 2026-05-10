@@ -910,7 +910,7 @@ class TodayMemoryView extends ItemView {
     return true;
   }
 
-  private render(options: { scrollTarget?: "top" | "note" } = {}): void {
+  private render(options: { scrollTarget?: "top" | "preserve"; preservedScrollTop?: number } = {}): void {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass("gentle-memories-sidebar-view");
@@ -942,7 +942,7 @@ class TodayMemoryView extends ItemView {
 
     const hasLongNote = this.memory.markdownBody.length > MEMORY_VIEW_PREVIEW_CHARACTERS;
     const hasMoreHiddenContent = this.revealedCharacters < this.memory.markdownBody.length;
-    const originalNoteHeadingEl = scrollContainerEl.createEl("h3", {
+    scrollContainerEl.createEl("h3", {
       cls: "gentle-memories-original-note-heading",
       text: "Original note"
     });
@@ -958,11 +958,15 @@ class TodayMemoryView extends ItemView {
         ? createProgressiveMarkdownReveal(this.memory.markdownBody, this.revealedCharacters)
         : createMarkdownPreview(this.memory.markdownBody, this.revealedCharacters);
 
-    this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
+    this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory, () => {
+      this.restoreScrollPosition(options);
+    });
     this.renderActionRow(scrollContainerEl, { hasLongNote, hasMoreHiddenContent, revealStarted });
 
     this.startAutomaticReflectionLoad();
-    this.restoreScrollPosition(options.scrollTarget, originalNoteHeadingEl);
+    if (options.scrollTarget === "top") {
+      this.restoreScrollPosition(options);
+    }
   }
 
   private renderActionRow(
@@ -976,8 +980,9 @@ class TodayMemoryView extends ItemView {
       buttons.addButton((button) => button
         .setButtonText("Show more")
         .onClick(() => {
+          const preservedScrollTop = this.scrollContainerEl?.scrollTop ?? 0;
           this.revealedCharacters = getNextMemoryViewRevealCharacters(this.memory?.markdownBody ?? "", this.revealedCharacters);
-          this.render({ scrollTarget: "note" });
+          this.render({ scrollTarget: "preserve", preservedScrollTop });
         }));
     }
 
@@ -1024,7 +1029,12 @@ class TodayMemoryView extends ItemView {
     return !!this.memory && this.revealedCharacters > MEMORY_VIEW_PREVIEW_CHARACTERS;
   }
 
-  private renderNoteMarkdown(noteContentEl: HTMLElement, renderedMarkdown: string, memory: MemoryEntry): void {
+  private renderNoteMarkdown(
+    noteContentEl: HTMLElement,
+    renderedMarkdown: string,
+    memory: MemoryEntry,
+    afterRender?: () => void
+  ): void {
     const generation = this.noteRenderGeneration + 1;
     this.noteRenderGeneration = generation;
     const renderTargetEl = document.createElement("div");
@@ -1037,6 +1047,7 @@ class TodayMemoryView extends ItemView {
         }
 
         noteContentEl.appendChild(renderTargetEl);
+        afterRender?.();
       })
       .catch(() => {
         if (this.noteRenderGeneration !== generation || this.memory?.path !== memory.path) {
@@ -1047,6 +1058,7 @@ class TodayMemoryView extends ItemView {
           cls: "gentle-memories-excerpt",
           text: memory.excerpt
         });
+        afterRender?.();
       });
   }
 
@@ -1074,17 +1086,17 @@ class TodayMemoryView extends ItemView {
     }
   }
 
-  private restoreScrollPosition(scrollTarget: "top" | "note" | undefined, originalNoteHeadingEl: HTMLElement): void {
-    if (!scrollTarget || !this.scrollContainerEl) {
+  private restoreScrollPosition(options: { scrollTarget?: "top" | "preserve"; preservedScrollTop?: number }): void {
+    if (!options.scrollTarget || !this.scrollContainerEl) {
       return;
     }
 
-    if (scrollTarget === "top") {
+    if (options.scrollTarget === "top") {
       this.scrollContainerEl.scrollTop = 0;
       return;
     }
 
-    originalNoteHeadingEl.scrollIntoView({ block: "start" });
+    this.scrollContainerEl.scrollTop = Math.max(0, options.preservedScrollTop ?? 0);
   }
 
   private async openSourceNote(): Promise<void> {

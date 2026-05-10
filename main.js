@@ -727,7 +727,7 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
     }
     const hasLongNote = this.memory.markdownBody.length > MEMORY_VIEW_PREVIEW_CHARACTERS;
     const hasMoreHiddenContent = this.revealedCharacters < this.memory.markdownBody.length;
-    const originalNoteHeadingEl = scrollContainerEl.createEl("h3", {
+    scrollContainerEl.createEl("h3", {
       cls: "gentle-memories-original-note-heading",
       text: "Original note"
     });
@@ -736,19 +736,24 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
       cls: isCollapsedLongNote ? "gentle-memories-note-content gentle-memories-note-preview gentle-memories-view-note-preview" : "gentle-memories-note-content"
     });
     const renderedMarkdown = this.revealedCharacters >= this.memory.markdownBody.length ? this.memory.markdownBody : revealStarted ? createProgressiveMarkdownReveal(this.memory.markdownBody, this.revealedCharacters) : createMarkdownPreview(this.memory.markdownBody, this.revealedCharacters);
-    this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory);
+    this.renderNoteMarkdown(noteContentEl, renderedMarkdown, this.memory, () => {
+      this.restoreScrollPosition(options);
+    });
     this.renderActionRow(scrollContainerEl, { hasLongNote, hasMoreHiddenContent, revealStarted });
     this.startAutomaticReflectionLoad();
-    this.restoreScrollPosition(options.scrollTarget, originalNoteHeadingEl);
+    if (options.scrollTarget === "top") {
+      this.restoreScrollPosition(options);
+    }
   }
   renderActionRow(scrollContainerEl, state) {
     const buttonContainer = scrollContainerEl.createDiv({ cls: "gentle-memories-buttons gentle-memories-view-actions" });
     const buttons = new import_obsidian.Setting(buttonContainer);
     if (state.hasLongNote && state.hasMoreHiddenContent) {
       buttons.addButton((button) => button.setButtonText("Show more").onClick(() => {
-        var _a, _b;
-        this.revealedCharacters = getNextMemoryViewRevealCharacters((_b = (_a = this.memory) == null ? void 0 : _a.markdownBody) != null ? _b : "", this.revealedCharacters);
-        this.render({ scrollTarget: "note" });
+        var _a, _b, _c, _d;
+        const preservedScrollTop = (_b = (_a = this.scrollContainerEl) == null ? void 0 : _a.scrollTop) != null ? _b : 0;
+        this.revealedCharacters = getNextMemoryViewRevealCharacters((_d = (_c = this.memory) == null ? void 0 : _c.markdownBody) != null ? _d : "", this.revealedCharacters);
+        this.render({ scrollTarget: "preserve", preservedScrollTop });
       }));
     }
     if (state.hasLongNote && state.revealStarted) {
@@ -777,7 +782,7 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
   hasRevealStarted() {
     return !!this.memory && this.revealedCharacters > MEMORY_VIEW_PREVIEW_CHARACTERS;
   }
-  renderNoteMarkdown(noteContentEl, renderedMarkdown, memory) {
+  renderNoteMarkdown(noteContentEl, renderedMarkdown, memory, afterRender) {
     const generation = this.noteRenderGeneration + 1;
     this.noteRenderGeneration = generation;
     const renderTargetEl = document.createElement("div");
@@ -787,6 +792,7 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
         return;
       }
       noteContentEl.appendChild(renderTargetEl);
+      afterRender == null ? void 0 : afterRender();
     }).catch(() => {
       var _a;
       if (this.noteRenderGeneration !== generation || ((_a = this.memory) == null ? void 0 : _a.path) !== memory.path) {
@@ -796,6 +802,7 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
         cls: "gentle-memories-excerpt",
         text: memory.excerpt
       });
+      afterRender == null ? void 0 : afterRender();
     });
   }
   renderEmpty() {
@@ -819,15 +826,16 @@ var TodayMemoryView = class extends import_obsidian.ItemView {
       await leafWithDetach.detach();
     }
   }
-  restoreScrollPosition(scrollTarget, originalNoteHeadingEl) {
-    if (!scrollTarget || !this.scrollContainerEl) {
+  restoreScrollPosition(options) {
+    var _a;
+    if (!options.scrollTarget || !this.scrollContainerEl) {
       return;
     }
-    if (scrollTarget === "top") {
+    if (options.scrollTarget === "top") {
       this.scrollContainerEl.scrollTop = 0;
       return;
     }
-    originalNoteHeadingEl.scrollIntoView({ block: "start" });
+    this.scrollContainerEl.scrollTop = Math.max(0, (_a = options.preservedScrollTop) != null ? _a : 0);
   }
   async openSourceNote() {
     if (!this.memory) {

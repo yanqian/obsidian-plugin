@@ -730,3 +730,14 @@ Improve the memory view control order and AI action wording:
 - Preserve existing modal behavior unless a shared helper change is required.
 - Preserve existing memory selection, progressive reveal, tab reuse, restored-empty-view cleanup, scroll behavior, privacy constraints, and stale Markdown render protection.
 - Add automated coverage for action row order, shared action row membership, AI action labels, disabled/loading behavior, and post-generation `Regenerate` state.
+
+### 15.30 Progressive Reveal Scroll Anchor
+
+Fix the memory view scroll position after progressive `Show more`:
+
+- When the user scrolls to the end of the currently revealed note content and clicks `Show more`, the view should keep the reader near that previous end position after the next chunk is appended.
+- `Show more` should not jump back to the top of the memory view or the `Original note` heading after the first progressive reveal.
+- Repeated `Show more` clicks should support a loop of reading until the visible content stops, clicking `Show more`, and continuing from the same reading position.
+- `Show less` should still return the compact preview to the top so the collapsed note and controls are reachable.
+- Preserve existing action-row order, sticky action accessibility, AI lead-in behavior, stale Markdown render protection, memory selection, and modal behavior.
+- Add harness coverage for preserving the memory view scroll anchor after progressive `Show more`.

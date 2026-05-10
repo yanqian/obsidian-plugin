@@ -1543,14 +1543,16 @@ if (!longNoteView.classes.some((className) => className.includes("gentle-memorie
   throw new Error("Collapsed long memory view must use the adaptive memory view preview class");
 }
 
+scrollIntoViewCalls.length = 0;
+longNoteView.scrollTop = 840;
 await clickViewButton("Show more");
 
 if (pendingMarkdownRenders.length !== 2) {
   throw new Error("Long memory view Show more must start a progressive Markdown render");
 }
 
-if (!scrollIntoViewCalls.some((options) => options?.block === "start")) {
-  throw new Error("Long memory view Show more must move the reader near the original note heading");
+if (scrollIntoViewCalls.length !== 0) {
+  throw new Error("Long memory view Show more must preserve the current reading anchor instead of jumping to the original note heading");
 }
 
 const firstRevealViewRender = pendingMarkdownRenders[1];
@@ -1569,6 +1571,10 @@ staleCollapsedViewRender.complete();
 await flushPromises();
 longNoteView = renderedViews.at(-1);
 let longNoteViewText = longNoteView.texts.join("\n");
+
+if (longNoteView.scrollTop !== 840) {
+  throw new Error("Long memory view Show more must keep the reader at the previous scroll anchor after appending content");
+}
 
 if (longNoteViewText.includes(longNoteEnd)) {
   throw new Error("Memory view first progressive reveal must keep the final long-note detail hidden");
@@ -1602,16 +1608,27 @@ let revealAttempts = 0;
 
 while (longNoteView.buttons.includes("Show more") && revealAttempts < 10) {
   pendingMarkdownRenders.length = 0;
+  scrollIntoViewCalls.length = 0;
+  longNoteView.scrollTop = 900 + revealAttempts;
   await clickViewButton("Show more");
 
   if (pendingMarkdownRenders.length !== 1) {
     throw new Error("Each memory view Show more click must render exactly one additional reveal step");
   }
 
+  if (scrollIntoViewCalls.length !== 0) {
+    throw new Error("Repeated memory view Show more clicks must not jump back to the original note heading");
+  }
+
   pendingMarkdownRenders[0].complete();
   await flushPromises();
   longNoteView = renderedViews.at(-1);
   longNoteViewText = longNoteView.texts.join("\n");
+
+  if (longNoteView.scrollTop !== 900 + revealAttempts) {
+    throw new Error("Repeated memory view Show more clicks must preserve the previous reading position");
+  }
+
   revealAttempts += 1;
 }
 
