@@ -345,6 +345,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F044",
+      "description": "Add a persistent Today’s memory sidebar view and route the sparkles ribbon entry to open it while preserving memory selection, rendering, AI, history, cooldown, cache, and privacy behavior.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
     }
   ]
 }

@@ -639,3 +639,20 @@ Implement the project test structure as three explicit layers:
 - Keep `smoke` as a compatibility alias for the existing mock-Obsidian harness.
 - Update `./init.sh` so the full validation path runs build, unit, harness, and contract checks.
 - Update `test_plan.md` so completion rules and feature coverage describe the new layered structure.
+
+### 15.24 Sidebar Memory View
+
+Add a persistent Obsidian sidebar view for reviewing memories:
+
+- Register a plugin view named for a daily or current memory panel.
+- The view should be available as a right sidebar leaf and should be reusable across sessions when Obsidian restores the workspace layout.
+- The existing `sparkles` ribbon entry should open or focus this sidebar view and load a memory for review.
+- Keep the command palette manual memory flow usable; it may open the same sidebar view if that is the most consistent interaction.
+- The sidebar view must show the selected note title, date or path context, AI lead-in when AI is enabled, and the original note preview.
+- AI-generated lead-in content must remain visually distinct from the original note preview.
+- The original note preview should stay compact by default, roughly one screen or less, with a `Show more` control for long notes and a way to collapse it again.
+- Render note content with Obsidian markdown rendering so links, embeds, images, and normal note formatting are closer to native note display than plain text.
+- Include practical actions such as opening the source note and refreshing to another memory.
+- Preserve existing memory selection rules, display history, cooldown behavior, AI provider behavior, AI privacy constraints, cache behavior, and no-AI fallback behavior.
+- Show a clear empty state when no eligible note can be selected.
+- Update automated and manual verification coverage so the sidebar view cannot be marked complete without build, harness, contract, and human-style flow evidence.
