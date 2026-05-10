@@ -681,3 +681,20 @@ Fix the remaining expanded memory view scrolling issues found on iOS:
 - After `Show less`, keep the compact preview and action controls reachable without trapping the user in an off-screen scroll position.
 - Preserve existing memory selection, tab reuse, AI lead-in, async Markdown stale-render protection, modal flows, and privacy behavior.
 - Add automated coverage that verifies the memory view has scrollable layout styles and that expanded and collapsed states use the intended scroll and preview classes.
+
+### 15.27 Memory View Density, Restore, and Rotation Fix
+
+Fix the next memory view interaction issues found during real vault testing:
+
+- The collapsed memory view should use the available tab space better than the old short character preview.
+- The default memory view preview should show roughly one screen of note content while still preserving a `Show more` path for long notes.
+- The collapsed preview sizing should adapt to workspace tab height and window resizing through CSS rather than a tiny fixed character count alone.
+- When Obsidian restores a previously opened `Today's memory` custom view during app startup, the plugin should not show an empty `No journal notes found for the configured tags.` tab.
+- If a restored memory view has no current memory yet, close or detach that empty restored view quietly instead of distracting the user.
+- Opening Obsidian should not automatically create or show the memory view tab; startup memory behavior should stay limited to the existing startup modal settings.
+- Clicking the `sparkles` ribbon should create or reveal the memory view only when a memory can be selected.
+- If no eligible notes exist after a manual ribbon click, show a notice but do not leave an empty memory tab open.
+- Refresh should rotate through the full eligible memory set rather than bouncing between the same two notes.
+- Memory selection should prefer never-shown notes first; after all eligible notes have been shown, it should select the least-recently-shown note while excluding the current memory when possible.
+- Preserve existing command palette modal behavior, startup modal behavior, AI lead-in behavior, privacy constraints, tab reuse, scroll behavior, and stale Markdown render protection.
+- Add harness or unit coverage for adaptive preview sizing, restored empty view cleanup, no-empty-tab manual ribbon behavior, and least-recently-shown refresh rotation.

@@ -369,6 +369,14 @@
       "status": "done",
       "attempts": 1,
       "last_error": ""
+    },
+    {
+      "id": "F047",
+      "description": "Improve memory view preview density, prevent restored empty memory tabs on startup, avoid empty tabs when no notes exist, and rotate refresh through least-recently-shown memories.",
+      "passes": false,
+      "status": "todo",
+      "attempts": 0,
+      "last_error": ""
     }
   ]
 }
